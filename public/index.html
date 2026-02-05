@@ -17,29 +17,42 @@
     height: 100%;
     overflow: hidden;
     font-family: Arial, sans-serif;
+    background: black;
   }
 
-  #background {
+  #gameContainer {
     position: fixed;
     top: 0;
     left: 0;
     width: 100%;
     height: 100%;
+  }
+
+  #background {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    min-width: 100%;
+    min-height: 100%;
+    width: auto;
+    height: auto;
     object-fit: cover;
     z-index: 0;
   }
 
   #game {
-    position: fixed;
+    position: absolute;
     top: 0;
     left: 0;
-    width: 100%;
-    height: 100%;
+    width: 2560px;
+    height: 1440px;
+    transform-origin: top left;
     z-index: 1;
   }
 
   #joinPanel {
-    position: absolute;
+    position: fixed;
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
@@ -48,7 +61,7 @@
     border-radius: 15px;
     color: white;
     z-index: 100;
-    min-width: 300px;
+    min-width: 320px;
   }
 
   #joinPanel h3 {
@@ -57,14 +70,31 @@
     text-align: center;
   }
 
-  #joinPanel input {
+  #joinPanel label {
     display: block;
-    margin-bottom: 12px;
+    font-size: 12px;
+    color: #888;
+    margin-bottom: 5px;
+    margin-top: 10px;
+  }
+
+  #joinPanel input[type="text"] {
+    display: block;
+    margin-bottom: 5px;
     padding: 10px;
     width: 100%;
     border-radius: 5px;
     border: none;
     font-size: 14px;
+  }
+
+  #joinPanel input[type="color"] {
+    width: 100%;
+    height: 40px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    margin-bottom: 15px;
   }
 
   #joinPanel button {
@@ -77,10 +107,21 @@
     font-weight: bold;
     font-size: 14px;
     color: black;
+    margin-bottom: 8px;
   }
 
   #joinPanel button:hover {
     background: #00dddd;
+  }
+
+  #adminBtn {
+    background: #ff8800;
+    font-size: 12px;
+    padding: 8px;
+  }
+
+  #adminBtn:hover {
+    background: #dd6600;
   }
 
   #errorMsg {
@@ -136,7 +177,7 @@
   }
 
   #hud {
-    position: absolute;
+    position: fixed;
     top: 20px;
     right: 20px;
     background: rgba(0,0,0,0.8);
@@ -154,7 +195,7 @@
   }
 
   #connectionStatus {
-    position: absolute;
+    position: fixed;
     top: 20px;
     left: 20px;
     background: rgba(0,0,0,0.8);
@@ -168,55 +209,78 @@
   .disconnected {
     color: #ff4444 !important;
   }
+
+  .stat-line {
+    margin: 5px 0;
+  }
+
+  .best-captain {
+    color: #ffd700;
+    font-weight: bold;
+  }
 </style>
 </head>
 
 <body>
 
-<video id="background" autoplay muted loop playsinline>
-  <source src="https://raw.githubusercontent.com/tsiaros/spaceship-multiplayer/main/public/universe_loop.mp4">
-</video>
+<div id="gameContainer">
+  <video id="background" autoplay muted loop playsinline>
+    <source src="universe_loop.mp4" type="video/mp4">
+  </video>
 
-<div id="game">
-  <div id="joinPanel">
-    <h3>🚀 Join Game</h3>
-    <input id="playerName" type="text" placeholder="Your name" maxlength="20">
-    <input id="playerColor" type="color" value="#00ffff">
-    <button id="joinButton">Join Game</button>
-    <div id="errorMsg"></div>
-    <p style="font-size: 11px; margin-top: 15px; color: #888; text-align: center;">
-      W=thrust • A/D=rotate • SPACE=shoot
-    </p>
-  </div>
+  <div id="game"></div>
+</div>
 
-  <div id="connectionStatus">Connecting...</div>
+<div id="joinPanel">
+  <h3>🚀 Join Game</h3>
+  
+  <label>Your Name</label>
+  <input id="playerName" type="text" placeholder="Enter your name" maxlength="20">
+  
+  <label>Choose Color</label>
+  <input id="playerColor" type="color" value="#00ffff">
+  
+  <button id="joinButton">Join Game</button>
+  <button id="adminBtn">Admin Panel</button>
+  
+  <div id="errorMsg"></div>
+  
+  <p style="font-size: 11px; margin-top: 15px; color: #888; text-align: center;">
+    W=thrust • A/D=rotate • SPACE=shoot
+  </p>
+</div>
 
-  <div id="hud" style="display: none;">
-    <h4>Your Stats</h4>
-    <div>Kills: <span id="killCount">0</span></div>
-    <div>Health: <span id="healthCount">6</span>/6</div>
-    <div>Ship: <span id="shipType">Small</span></div>
-    <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #333;">
-      <div style="font-size: 12px; color: #888;">Players: <span id="playerCount">0</span></div>
-    </div>
+<div id="connectionStatus">Connecting...</div>
+
+<div id="hud" style="display: none;">
+  <h4>Your Stats</h4>
+  <div class="stat-line">Kills: <span id="killCount">0</span></div>
+  <div class="stat-line">Health: <span id="healthCount">6</span>/6</div>
+  <div class="stat-line">Ship: <span id="shipType">Small</span></div>
+  <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #333;">
+    <div class="stat-line" style="color: #888;">Players: <span id="playerCount">0</span></div>
+    <div class="stat-line best-captain">Best Captain: <span id="bestCaptain">-</span></div>
   </div>
 </div>
 
 <script src="/socket.io/socket.io.js"></script>
 <script>
-  // CHANGE THIS TO YOUR GLITCH URL!
   const SERVER_URL = window.location.origin;
   const socket = io(SERVER_URL);
 
+  const gameContainer = document.getElementById('gameContainer');
   const game = document.getElementById('game');
   const joinPanel = document.getElementById('joinPanel');
   const hud = document.getElementById('hud');
   const errorMsg = document.getElementById('errorMsg');
   const connectionStatus = document.getElementById('connectionStatus');
 
-  let CENTER_X, CENTER_Y;
-  const BLOCK_RADIUS = 350;
-  const ROTATION_SPEED = 2.5;
+  // Fixed game dimensions
+  const GAME_WIDTH = 2560;
+  const GAME_HEIGHT = 1440;
+  const CENTER_X = GAME_WIDTH / 2;
+  const CENTER_Y = GAME_HEIGHT / 2;
+  const ROTATION_SPEED = 1.8; // Slower for precise aiming
 
   let myPlayer = null;
   let myPlayerId = null;
@@ -229,15 +293,29 @@
   const bullets = new Map();
   let lastShot = 0;
   const SHOT_COOLDOWN = 400;
+  const MULTI_SHOT_DELAY = 130;
   const keys = {};
 
-  function updateCenter() {
-    CENTER_X = window.innerWidth / 2;
-    CENTER_Y = window.innerHeight / 2;
+  // Scale game to fit window
+  function scaleGame() {
+    const windowWidth = window.innerWidth;
+    const windowHeight = window.innerHeight;
+    
+    const scaleX = windowWidth / GAME_WIDTH;
+    const scaleY = windowHeight / GAME_HEIGHT;
+    const scale = Math.min(scaleX, scaleY);
+    
+    game.style.transform = `scale(${scale})`;
+    
+    // Center the game
+    const scaledWidth = GAME_WIDTH * scale;
+    const scaledHeight = GAME_HEIGHT * scale;
+    game.style.left = `${(windowWidth - scaledWidth) / 2 / scale}px`;
+    game.style.top = `${(windowHeight - scaledHeight) / 2 / scale}px`;
   }
 
-  window.addEventListener('resize', updateCenter);
-  updateCenter();
+  window.addEventListener('resize', scaleGame);
+  scaleGame();
 
   // Socket events
   socket.on('connect', () => {
@@ -255,10 +333,8 @@
     joinPanel.style.display = 'none';
     hud.style.display = 'block';
     
-    // Spawn my player
     spawnMyPlayer();
     
-    // Add other players
     data.players.forEach(p => {
       if (p.id !== myPlayerId) {
         addOtherPlayer(p);
@@ -266,6 +342,7 @@
     });
     
     updatePlayerCount();
+    updateBestCaptain();
   });
 
   socket.on('joinError', (msg) => {
@@ -284,6 +361,7 @@
     }
     otherPlayers.delete(playerId);
     updatePlayerCount();
+    updateBestCaptain();
   });
 
   socket.on('playerMoved', (data) => {
@@ -297,7 +375,7 @@
   });
 
   socket.on('bulletFired', (bullet) => {
-    if (bullet.owner === myPlayerId) return; // Don't show our own bullets twice
+    if (bullet.owner === myPlayerId) return;
     
     const bulletEl = document.createElement('div');
     bulletEl.className = 'bullet';
@@ -315,7 +393,6 @@
       myHealth = data.health;
       document.getElementById('healthCount').textContent = myHealth;
       
-      // Flash
       if (myPlayer) {
         myPlayer.style.filter = 'brightness(3) saturate(0)';
         setTimeout(() => {
@@ -344,7 +421,6 @@
         myShipSize.charAt(0).toUpperCase() + myShipSize.slice(1);
       updateMyShipVisual();
     } else {
-      // Update other player
       const victim = otherPlayers.get(data.victimId);
       if (victim) {
         victim.kills = 0;
@@ -357,6 +433,7 @@
         killer.shipSize = data.killerShipSize;
       }
     }
+    updateBestCaptain();
   });
 
   socket.on('playerRespawned', (data) => {
@@ -430,8 +507,12 @@
     myPlayer.appendChild(nameEl);
     myPlayer.appendChild(killsEl);
 
-    myX = CENTER_X + BLOCK_RADIUS + 60;
-    myY = CENTER_Y;
+    // Random spawn position
+    const angle = Math.random() * Math.PI * 2;
+    const distance = 400 + Math.random() * 200;
+    myX = CENTER_X + Math.cos(angle) * distance;
+    myY = CENTER_Y + Math.sin(angle) * distance;
+    myAngle = 0;
 
     game.appendChild(myPlayer);
   }
@@ -479,21 +560,35 @@
     lastShot = now;
 
     const radians = myAngle * Math.PI / 180;
+    
+    // Determine number of shots based on ship size
+    let numShots = 1;
+    if (myShipSize === 'medium') numShots = 2;
+    if (myShipSize === 'large') numShots = 3;
+
+    // Fire shots with delay
+    for (let i = 0; i < numShots; i++) {
+      setTimeout(() => {
+        fireSingleBullet(radians);
+      }, i * MULTI_SHOT_DELAY);
+    }
+  }
+
+  function fireSingleBullet(radians) {
+    // Spawn from center front of ship
     const bulletX = myX + Math.sin(radians) * 25;
     const bulletY = myY - Math.cos(radians) * 25;
     const vx = Math.sin(radians) * 8;
     const vy = -Math.cos(radians) * 8;
 
-    // Send to server
     socket.emit('shoot', { x: bulletX, y: bulletY, vx, vy });
 
-    // Create local bullet
     const bulletEl = document.createElement('div');
     bulletEl.className = 'bullet';
     bulletEl.style.color = playerColor;
     game.appendChild(bulletEl);
 
-    const bulletId = `${myPlayerId}_${now}`;
+    const bulletId = `${myPlayerId}_${Date.now()}_${Math.random()}`;
     bullets.set(bulletId, {
       id: bulletId,
       x: bulletX,
@@ -511,17 +606,8 @@
       bullet.y += bullet.vy;
 
       // Remove if off screen
-      if (bullet.x < -20 || bullet.x > window.innerWidth + 20 ||
-          bullet.y < -20 || bullet.y > window.innerHeight + 20) {
-        bullet.element.remove();
-        bullets.delete(id);
-        return;
-      }
-
-      // Remove if hits center
-      const dx = bullet.x - CENTER_X;
-      const dy = bullet.y - CENTER_Y;
-      if (Math.sqrt(dx*dx + dy*dy) < BLOCK_RADIUS) {
+      if (bullet.x < -100 || bullet.x > GAME_WIDTH + 100 ||
+          bullet.y < -100 || bullet.y > GAME_HEIGHT + 100) {
         bullet.element.remove();
         bullets.delete(id);
         return;
@@ -538,7 +624,7 @@
         }
       }
 
-      // Check collision with other players (only my bullets)
+      // Check collision with other players
       if (bullet.owner === myPlayerId) {
         for (const [pid, player] of otherPlayers.entries()) {
           const dist = Math.sqrt((bullet.x - player.x)**2 + (bullet.y - player.y)**2);
@@ -570,9 +656,12 @@
 
   function respawn() {
     spawnMyPlayer();
-    
-    myX = CENTER_X + BLOCK_RADIUS + 60;
-    myY = CENTER_Y;
+
+    // Random respawn
+    const angle = Math.random() * Math.PI * 2;
+    const distance = 400 + Math.random() * 200;
+    myX = CENTER_X + Math.cos(angle) * distance;
+    myY = CENTER_Y + Math.sin(angle) * distance;
     myAngle = 0;
     mySpeed = 0;
 
@@ -585,6 +674,20 @@
 
   function updatePlayerCount() {
     document.getElementById('playerCount').textContent = otherPlayers.size + 1;
+  }
+
+  function updateBestCaptain() {
+    let bestName = playerName;
+    let bestKills = myKills;
+
+    otherPlayers.forEach(player => {
+      if (player.kills > bestKills) {
+        bestKills = player.kills;
+        bestName = player.name;
+      }
+    });
+
+    document.getElementById('bestCaptain').textContent = bestKills > 0 ? bestName : '-';
   }
 
   function joinGame() {
@@ -605,9 +708,18 @@
     if (e.key === 'Enter') joinGame();
   });
 
+  document.getElementById('adminBtn').addEventListener('click', () => {
+    const password = prompt('Enter admin password:');
+    if (password === '3310') {
+      window.location.href = '/admin.html';
+    } else if (password) {
+      alert('Incorrect password');
+    }
+  });
+
   function update() {
     if (myPlayer) {
-      // Rotation
+      // Slower rotation
       if (keys['a'] || keys['arrowleft']) myAngle -= ROTATION_SPEED;
       if (keys['d'] || keys['arrowright']) myAngle += ROTATION_SPEED;
 
@@ -617,24 +729,14 @@
 
       // Movement
       const radians = myAngle * Math.PI / 180;
-      let nx = myX + Math.sin(radians) * mySpeed;
-      let ny = myY - Math.cos(radians) * mySpeed;
+      myX += Math.sin(radians) * mySpeed;
+      myY -= Math.cos(radians) * mySpeed;
 
-      // Center collision
-      const dx = nx - CENTER_X;
-      const dy = ny - CENTER_Y;
-      if (Math.sqrt(dx*dx + dy*dy) > BLOCK_RADIUS) {
-        myX = nx;
-        myY = ny;
-      } else {
-        mySpeed *= 0.3;
-      }
-
-      // Screen wrap
-      if (myX < 0) myX = window.innerWidth;
-      if (myX > window.innerWidth) myX = 0;
-      if (myY < 0) myY = window.innerHeight;
-      if (myY > window.innerHeight) myY = 0;
+      // Screen wrapping
+      if (myX < 0) myX = GAME_WIDTH;
+      if (myX > GAME_WIDTH) myX = 0;
+      if (myY < 0) myY = GAME_HEIGHT;
+      if (myY > GAME_HEIGHT) myY = 0;
 
       myPlayer.style.transform = `translate(${myX}px, ${myY}px) rotate(${myAngle}deg)`;
 
