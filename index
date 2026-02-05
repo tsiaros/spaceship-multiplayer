@@ -174,7 +174,7 @@
 <body>
 
 <video id="background" autoplay muted loop playsinline>
-  <source src="universe_loop.mp4" type="video/mp4">
+  <source src="https://raw.githubusercontent.com/tsiaros/spaceship-multiplayer/main/universe_loop.mp4">
 </video>
 
 <div id="game">
