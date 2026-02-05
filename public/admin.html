@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Spaceship Multiplayer</title>
+<title>Admin Panel - Spaceship Game</title>
 
 <style>
   * {
@@ -12,255 +12,312 @@
     box-sizing: border-box;
   }
 
-  html, body {
-    width: 100%;
-    height: 100%;
-    overflow: hidden;
+  body {
     font-family: Arial, sans-serif;
-    background: black;
-  }
-
-  #gameContainer {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-  }
-
-  #background {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    min-width: 100%;
-    min-height: 100%;
-    width: auto;
-    height: auto;
-    object-fit: cover;
-    z-index: 0;
-  }
-
-  #game {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 2560px;
-    height: 1440px;
-    transform-origin: top left;
-    z-index: 1;
-  }
-
-  #joinPanel {
-    position: fixed;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    background: rgba(0,0,0,0.9);
-    padding: 30px;
-    border-radius: 15px;
+    background: #1a1a1a;
     color: white;
-    z-index: 100;
-    min-width: 320px;
+    padding: 20px;
   }
 
-  #joinPanel h3 {
-    margin-bottom: 15px;
+  #loginPanel {
+    max-width: 400px;
+    margin: 100px auto;
+    background: #2a2a2a;
+    padding: 30px;
+    border-radius: 10px;
+  }
+
+  #adminPanel {
+    display: none;
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+
+  h1 {
     color: #00ffff;
-    text-align: center;
+    margin-bottom: 20px;
   }
 
-  #joinPanel label {
-    display: block;
-    font-size: 12px;
-    color: #888;
-    margin-bottom: 5px;
-    margin-top: 10px;
+  h2 {
+    color: #00ffff;
+    margin: 30px 0 15px 0;
+    font-size: 18px;
   }
 
-  #joinPanel input[type="text"] {
-    display: block;
-    margin-bottom: 5px;
-    padding: 10px;
+  input[type="password"], input[type="text"] {
     width: 100%;
+    padding: 12px;
     border-radius: 5px;
     border: none;
+    margin-bottom: 10px;
     font-size: 14px;
   }
 
-  #joinPanel input[type="color"] {
-    width: 100%;
-    height: 40px;
-    border: none;
-    border-radius: 5px;
-    cursor: pointer;
-    margin-bottom: 15px;
-  }
-
-  #joinPanel button {
-    width: 100%;
-    padding: 12px;
+  button {
+    padding: 12px 20px;
     background: #00ffff;
     border: none;
     border-radius: 5px;
     cursor: pointer;
     font-weight: bold;
-    font-size: 14px;
     color: black;
-    margin-bottom: 8px;
+    font-size: 14px;
   }
 
-  #joinPanel button:hover {
+  button:hover {
     background: #00dddd;
   }
 
-  #adminBtn {
-    background: #ff8800;
-    font-size: 12px;
-    padding: 8px;
+  button.danger {
+    background: #ff4444;
+    color: white;
+    margin-left: 5px;
   }
 
-  #adminBtn:hover {
-    background: #dd6600;
+  button.danger:hover {
+    background: #dd2222;
   }
 
-  #errorMsg {
+  button.warning {
+    background: #ffaa00;
+    color: black;
+    margin-left: 5px;
+  }
+
+  button.warning:hover {
+    background: #dd8800;
+  }
+
+  .error {
     color: #ff4444;
-    font-size: 12px;
     margin-top: 10px;
-    text-align: center;
-  }
-
-  .ship {
-    position: absolute;
-    transform-origin: center;
-  }
-
-  .ship-small { width: 40px; height: 40px; }
-  .ship-medium { width: 50px; height: 50px; }
-  .ship-large { width: 60px; height: 60px; }
-
-  .player-name {
-    position: absolute;
-    top: 45px;
-    left: -40px;
-    width: 120px;
-    text-align: center;
-    font-size: 11px;
-    font-weight: bold;
-    color: white;
-    text-shadow: 0 0 4px black, 0 0 8px black;
-    pointer-events: none;
-    white-space: nowrap;
-  }
-
-  .kill-counter {
-    position: absolute;
-    top: 60px;
-    left: -40px;
-    width: 120px;
-    text-align: center;
-    font-size: 10px;
-    color: #00ff00;
-    text-shadow: 0 0 4px black;
-    pointer-events: none;
-  }
-
-  .bullet {
-    position: absolute;
-    width: 4px;
-    height: 10px;
-    background: currentColor;
-    border-radius: 2px;
-    box-shadow: 0 0 5px currentColor;
-    pointer-events: none;
-  }
-
-  #hud {
-    position: fixed;
-    top: 20px;
-    right: 20px;
-    background: rgba(0,0,0,0.8);
-    padding: 15px;
-    border-radius: 10px;
-    color: white;
     font-size: 14px;
-    z-index: 100;
-    min-width: 200px;
   }
 
-  #hud h4 {
-    color: #00ffff;
-    margin-bottom: 10px;
-  }
-
-  #connectionStatus {
-    position: fixed;
-    top: 20px;
-    left: 20px;
-    background: rgba(0,0,0,0.8);
-    padding: 10px 15px;
-    border-radius: 5px;
+  .success {
     color: #00ff00;
+    margin-top: 10px;
+    font-size: 14px;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 10px;
+    background: #2a2a2a;
+  }
+
+  th, td {
+    padding: 12px;
+    text-align: left;
+    border-bottom: 1px solid #444;
+  }
+
+  th {
+    background: #333;
+    color: #00ffff;
+  }
+
+  .status {
+    display: inline-block;
+    padding: 4px 8px;
+    border-radius: 3px;
     font-size: 12px;
-    z-index: 100;
   }
 
-  .disconnected {
-    color: #ff4444 !important;
+  .status.online {
+    background: #00ff00;
+    color: black;
   }
 
-  .stat-line {
-    margin: 5px 0;
+  .status.banned {
+    background: #ff4444;
+    color: white;
   }
 
-  .best-captain {
-    color: #ffd700;
+  .status.kicked {
+    background: #ffaa00;
+    color: black;
+  }
+
+  #stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 15px;
+    margin-bottom: 30px;
+  }
+
+  .stat-card {
+    background: #2a2a2a;
+    padding: 20px;
+    border-radius: 8px;
+    text-align: center;
+  }
+
+  .stat-value {
+    font-size: 32px;
+    color: #00ffff;
     font-weight: bold;
+  }
+
+  .stat-label {
+    font-size: 14px;
+    color: #888;
+    margin-top: 5px;
+  }
+
+  #refreshBtn {
+    float: right;
+  }
+
+  .word-list {
+    background: #2a2a2a;
+    padding: 15px;
+    border-radius: 8px;
+    margin-top: 10px;
+    max-height: 200px;
+    overflow-y: auto;
+  }
+
+  .word-tag {
+    display: inline-block;
+    background: #ff4444;
+    color: white;
+    padding: 5px 10px;
+    border-radius: 4px;
+    margin: 5px;
+    font-size: 12px;
+  }
+
+  .word-tag button {
+    background: none;
+    border: none;
+    color: white;
+    margin-left: 8px;
+    cursor: pointer;
+    padding: 0;
+    font-size: 14px;
+  }
+
+  .add-word-section {
+    margin-top: 10px;
+    display: flex;
+    gap: 10px;
+  }
+
+  .add-word-section input {
+    flex: 1;
+    margin-bottom: 0;
+  }
+
+  #spectatorNote {
+    background: rgba(255, 170, 0, 0.2);
+    padding: 10px;
+    border-radius: 5px;
+    border-left: 4px solid #ffaa00;
+    margin: 15px 0;
+    font-size: 13px;
   }
 </style>
 </head>
 
 <body>
 
-<div id="gameContainer">
-  <video id="background" autoplay muted loop playsinline>
-    <source src="universe_loop.mp4" type="video/mp4">
-  </video>
-
-  <div id="game"></div>
-</div>
-
-<div id="joinPanel">
-  <h3>🚀 Join Game</h3>
-  
-  <label>Your Name</label>
-  <input id="playerName" type="text" placeholder="Enter your name" maxlength="20">
-  
-  <label>Choose Color</label>
-  <input id="playerColor" type="color" value="#00ffff">
-  
-  <button id="joinButton">Join Game</button>
-  <button id="adminBtn">Admin Panel</button>
-  
-  <div id="errorMsg"></div>
-  
-  <p style="font-size: 11px; margin-top: 15px; color: #888; text-align: center;">
-    W=thrust • A/D=rotate • SPACE=shoot
+<!-- LOGIN PANEL -->
+<div id="loginPanel">
+  <h1>🔒 Admin Login</h1>
+  <input type="password" id="adminPassword" placeholder="Enter admin password">
+  <button onclick="login()">Login</button>
+  <div id="loginError" class="error"></div>
+  <p style="font-size: 12px; color: #888; margin-top: 20px;">
+    Password: <code>3310</code>
   </p>
 </div>
 
-<div id="connectionStatus">Connecting...</div>
-
-<div id="hud" style="display: none;">
-  <h4>Your Stats</h4>
-  <div class="stat-line">Kills: <span id="killCount">0</span></div>
-  <div class="stat-line">Health: <span id="healthCount">6</span>/6</div>
-  <div class="stat-line">Ship: <span id="shipType">Small</span></div>
-  <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #333;">
-    <div class="stat-line" style="color: #888;">Players: <span id="playerCount">0</span></div>
-    <div class="stat-line best-captain">Best Captain: <span id="bestCaptain">-</span></div>
+<!-- ADMIN PANEL -->
+<div id="adminPanel">
+  <h1>⚙️ Admin Panel</h1>
+  
+  <div id="spectatorNote">
+    <strong>💡 Spectator Mode:</strong> To view the game without playing, open 
+    <a href="/" target="_blank" style="color: #00ffff;">/</a> in a new tab. 
+    Don't join - just watch! Use that tab as OBS Browser Source (2560x1440).
   </div>
+
+  <div id="stats">
+    <div class="stat-card">
+      <div class="stat-value" id="statPlayers">0</div>
+      <div class="stat-label">Online Players</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value" id="statBanned">0</div>
+      <div class="stat-label">Banned Users</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value" id="statKicked">0</div>
+      <div class="stat-label">Kicked Users (24h)</div>
+    </div>
+  </div>
+
+  <button id="refreshBtn" onclick="refreshData()">🔄 Refresh</button>
+  <h2>Online Players</h2>
+  <div id="actionMsg" class="success"></div>
+  <table>
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Color</th>
+        <th>Kills</th>
+        <th>Health</th>
+        <th>Ship</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody id="playerList">
+      <tr>
+        <td colspan="6" style="text-align: center; color: #888;">Loading...</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2>Banned Words</h2>
+  <div class="word-list" id="bannedWords">
+    Loading...
+  </div>
+  <div class="add-word-section">
+    <input type="text" id="newWord" placeholder="Add banned word" maxlength="30">
+    <button onclick="addBannedWord()">Add Word</button>
+  </div>
+
+  <h2>Banned Users</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Username</th>
+        <th>Status</th>
+      </tr>
+    </thead>
+    <tbody id="bannedList">
+      <tr>
+        <td colspan="2" style="text-align: center; color: #888;">None</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2>Kicked Users (24h)</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Username</th>
+        <th>Expires</th>
+      </tr>
+    </thead>
+    <tbody id="kickedList">
+      <tr>
+        <td colspan="2" style="text-align: center; color: #888;">None</td>
+      </tr>
+    </tbody>
+  </table>
 </div>
 
 <script src="/socket.io/socket.io.js"></script>
@@ -268,502 +325,173 @@
   const SERVER_URL = window.location.origin;
   const socket = io(SERVER_URL);
 
-  const gameContainer = document.getElementById('gameContainer');
-  const game = document.getElementById('game');
-  const joinPanel = document.getElementById('joinPanel');
-  const hud = document.getElementById('hud');
-  const errorMsg = document.getElementById('errorMsg');
-  const connectionStatus = document.getElementById('connectionStatus');
+  let isAuthenticated = false;
+  let bannedWords = [];
 
-  // Fixed game dimensions
-  const GAME_WIDTH = 2560;
-  const GAME_HEIGHT = 1440;
-  const CENTER_X = GAME_WIDTH / 2;
-  const CENTER_Y = GAME_HEIGHT / 2;
-  const ROTATION_SPEED = 1.8; // Slower for precise aiming
+  socket.on('adminAuthenticated', () => {
+    isAuthenticated = true;
+    document.getElementById('loginPanel').style.display = 'none';
+    document.getElementById('adminPanel').style.display = 'block';
+    refreshData();
+    loadBannedWords();
+  });
 
-  let myPlayer = null;
-  let myPlayerId = null;
-  let playerName = '';
-  let playerColor = '#00ffff';
-  let myX = 0, myY = 0, myAngle = 0, mySpeed = 0;
-  let myHealth = 6, myKills = 0, myShipSize = 'small';
+  socket.on('adminError', (msg) => {
+    document.getElementById('loginError').textContent = msg;
+  });
 
-  const otherPlayers = new Map();
-  const bullets = new Map();
-  let lastShot = 0;
-  const SHOT_COOLDOWN = 400;
-  const MULTI_SHOT_DELAY = 130;
-  const keys = {};
+  socket.on('adminPlayerList', (data) => {
+    updatePlayerList(data.players);
+    updateBannedList(data.banned);
+    updateKickedList(data.kicked);
+    updateStats(data);
+  });
 
-  // Scale game to fit window
-  function scaleGame() {
-    const windowWidth = window.innerWidth;
-    const windowHeight = window.innerHeight;
-    
-    const scaleX = windowWidth / GAME_WIDTH;
-    const scaleY = windowHeight / GAME_HEIGHT;
-    const scale = Math.min(scaleX, scaleY);
-    
-    game.style.transform = `scale(${scale})`;
-    
-    // Center the game
-    const scaledWidth = GAME_WIDTH * scale;
-    const scaledHeight = GAME_HEIGHT * scale;
-    game.style.left = `${(windowWidth - scaledWidth) / 2 / scale}px`;
-    game.style.top = `${(windowHeight - scaledHeight) / 2 / scale}px`;
+  socket.on('adminActionSuccess', (msg) => {
+    const msgEl = document.getElementById('actionMsg');
+    msgEl.textContent = msg;
+    msgEl.style.display = 'block';
+    setTimeout(() => {
+      msgEl.style.display = 'none';
+    }, 3000);
+    refreshData();
+  });
+
+  socket.on('bannedWordsUpdate', (words) => {
+    bannedWords = words;
+    displayBannedWords();
+  });
+
+  function login() {
+    const password = document.getElementById('adminPassword').value;
+    socket.emit('adminLogin', password);
   }
 
-  window.addEventListener('resize', scaleGame);
-  scaleGame();
-
-  // Socket events
-  socket.on('connect', () => {
-    connectionStatus.textContent = 'Connected';
-    connectionStatus.classList.remove('disconnected');
-  });
-
-  socket.on('disconnect', () => {
-    connectionStatus.textContent = 'Disconnected';
-    connectionStatus.classList.add('disconnected');
-  });
-
-  socket.on('joinSuccess', (data) => {
-    myPlayerId = data.playerId;
-    joinPanel.style.display = 'none';
-    hud.style.display = 'block';
-    
-    spawnMyPlayer();
-    
-    data.players.forEach(p => {
-      if (p.id !== myPlayerId) {
-        addOtherPlayer(p);
-      }
-    });
-    
-    updatePlayerCount();
-    updateBestCaptain();
-  });
-
-  socket.on('joinError', (msg) => {
-    errorMsg.textContent = msg;
-  });
-
-  socket.on('playerJoined', (player) => {
-    addOtherPlayer(player);
-    updatePlayerCount();
-  });
-
-  socket.on('playerLeft', (playerId) => {
-    const player = otherPlayers.get(playerId);
-    if (player && player.element) {
-      player.element.remove();
-    }
-    otherPlayers.delete(playerId);
-    updatePlayerCount();
-    updateBestCaptain();
-  });
-
-  socket.on('playerMoved', (data) => {
-    const player = otherPlayers.get(data.id);
-    if (!player) return;
-    
-    player.x = data.x;
-    player.y = data.y;
-    player.angle = data.angle;
-    player.speed = data.speed;
-  });
-
-  socket.on('bulletFired', (bullet) => {
-    if (bullet.owner === myPlayerId) return;
-    
-    const bulletEl = document.createElement('div');
-    bulletEl.className = 'bullet';
-    bulletEl.style.color = bullet.color;
-    game.appendChild(bulletEl);
-    
-    bullets.set(bullet.id, {
-      ...bullet,
-      element: bulletEl
-    });
-  });
-
-  socket.on('playerDamaged', (data) => {
-    if (data.victimId === myPlayerId) {
-      myHealth = data.health;
-      document.getElementById('healthCount').textContent = myHealth;
-      
-      if (myPlayer) {
-        myPlayer.style.filter = 'brightness(3) saturate(0)';
-        setTimeout(() => {
-          if (myPlayer) myPlayer.style.filter = '';
-        }, 200);
-      }
-    } else {
-      const player = otherPlayers.get(data.victimId);
-      if (player && player.element) {
-        player.element.style.filter = 'brightness(3) saturate(0)';
-        setTimeout(() => {
-          if (player.element) player.element.style.filter = '';
-        }, 200);
-      }
-    }
-  });
-
-  socket.on('playerDied', (data) => {
-    if (data.victimId === myPlayerId) {
-      die();
-    } else if (data.killerId === myPlayerId) {
-      myKills = data.killerKills;
-      myShipSize = data.killerShipSize;
-      document.getElementById('killCount').textContent = myKills;
-      document.getElementById('shipType').textContent = 
-        myShipSize.charAt(0).toUpperCase() + myShipSize.slice(1);
-      updateMyShipVisual();
-    } else {
-      const victim = otherPlayers.get(data.victimId);
-      if (victim) {
-        victim.kills = 0;
-        victim.shipSize = 'small';
-      }
-      
-      const killer = otherPlayers.get(data.killerId);
-      if (killer) {
-        killer.kills = data.killerKills;
-        killer.shipSize = data.killerShipSize;
-      }
-    }
-    updateBestCaptain();
-  });
-
-  socket.on('playerRespawned', (data) => {
-    const player = otherPlayers.get(data.id);
-    if (!player) return;
-    
-    player.x = data.x;
-    player.y = data.y;
-    player.angle = 0;
-    player.speed = 0;
-  });
-
-  socket.on('kicked', (msg) => {
-    alert(msg);
-    window.location.reload();
-  });
-
-  socket.on('banned', (msg) => {
-    alert(msg);
-    window.location.reload();
-  });
-
-  // Keyboard
-  document.addEventListener('keydown', e => {
-    keys[e.key.toLowerCase()] = true;
-    if (e.code === 'Space' && myPlayer) { 
-      shoot(); 
-      e.preventDefault(); 
-    }
-    if (['w','a','d','arrowup','arrowleft','arrowright'].includes(e.key.toLowerCase())) {
-      e.preventDefault();
-    }
-  });
-
-  document.addEventListener('keyup', e => keys[e.key.toLowerCase()] = false);
-
-  function getShipSVG(size) {
-    if (size === 'small') {
-      return `<svg viewBox="0 0 40 40"><g fill="none" stroke="currentColor" stroke-width="2">
-        <polygon points="20,4 28,30 20,24 12,30" />
-        <circle cx="20" cy="16" r="2" fill="currentColor" /></g></svg>`;
-    } else if (size === 'medium') {
-      return `<svg viewBox="0 0 50 50"><g fill="none" stroke="currentColor" stroke-width="2">
-        <polygon points="25,4 32,18 42,22 32,26 25,40 18,26 8,22 18,18" />
-        <circle cx="25" cy="20" r="3" fill="currentColor" />
-        <line x1="22" y1="34" x2="22" y2="42" /><line x1="28" y1="34" x2="28" y2="42" /></g></svg>`;
-    } else {
-      return `<svg viewBox="0 0 70 70"><g fill="none" stroke="currentColor" stroke-width="2.5">
-        <polygon points="35,5 45,20 60,28 45,32 35,55 25,32 10,28 25,20" />
-        <polygon points="5,30 15,35 5,40" /><polygon points="65,30 55,35 65,40" />
-        <circle cx="35" cy="24" r="4" fill="currentColor" />
-        <line x1="30" y1="52" x2="30" y2="65" /><line x1="35" y1="52" x2="35" y2="65" />
-        <line x1="40" y1="52" x2="40" y2="65" /></g></svg>`;
-    }
+  function refreshData() {
+    if (!isAuthenticated) return;
+    socket.emit('adminGetPlayers');
   }
 
-  function spawnMyPlayer() {
-    myPlayer = document.createElement('div');
-    myPlayer.className = 'ship ship-small';
-    myPlayer.style.color = playerColor;
-
-    const nameEl = document.createElement('div');
-    nameEl.className = 'player-name';
-    nameEl.textContent = playerName + ' (You)';
-
-    const killsEl = document.createElement('div');
-    killsEl.className = 'kill-counter';
-    killsEl.textContent = 'Kills: 0';
-
-    myPlayer.innerHTML = getShipSVG('small');
-    myPlayer.appendChild(nameEl);
-    myPlayer.appendChild(killsEl);
-
-    // Random spawn position
-    const angle = Math.random() * Math.PI * 2;
-    const distance = 400 + Math.random() * 200;
-    myX = CENTER_X + Math.cos(angle) * distance;
-    myY = CENTER_Y + Math.sin(angle) * distance;
-    myAngle = 0;
-
-    game.appendChild(myPlayer);
+  function loadBannedWords() {
+    socket.emit('adminGetBannedWords');
   }
 
-  function addOtherPlayer(player) {
-    const el = document.createElement('div');
-    el.className = `ship ship-${player.shipSize}`;
-    el.style.color = player.color;
+  function addBannedWord() {
+    const word = document.getElementById('newWord').value.trim().toLowerCase();
+    if (!word) return;
 
-    const nameEl = document.createElement('div');
-    nameEl.className = 'player-name';
-    nameEl.textContent = player.name;
-
-    const killsEl = document.createElement('div');
-    killsEl.className = 'kill-counter';
-    killsEl.textContent = `Kills: ${player.kills}`;
-
-    el.innerHTML = getShipSVG(player.shipSize);
-    el.appendChild(nameEl);
-    el.appendChild(killsEl);
-
-    game.appendChild(el);
-
-    otherPlayers.set(player.id, {
-      ...player,
-      element: el
-    });
+    socket.emit('adminAddBannedWord', word);
+    document.getElementById('newWord').value = '';
   }
 
-  function updateMyShipVisual() {
-    if (!myPlayer) return;
-
-    myPlayer.className = `ship ship-${myShipSize}`;
-    const nameEl = myPlayer.querySelector('.player-name');
-    const killsEl = myPlayer.querySelector('.kill-counter');
-    myPlayer.innerHTML = getShipSVG(myShipSize);
-    myPlayer.appendChild(nameEl);
-    myPlayer.appendChild(killsEl);
-    if (killsEl) killsEl.textContent = `Kills: ${myKills}`;
+  function removeBannedWord(word) {
+    if (!confirm(`Remove "${word}" from banned words?`)) return;
+    socket.emit('adminRemoveBannedWord', word);
   }
 
-  function shoot() {
-    const now = Date.now();
-    if (now - lastShot < SHOT_COOLDOWN) return;
-    lastShot = now;
-
-    const radians = myAngle * Math.PI / 180;
-    
-    // Determine number of shots based on ship size
-    let numShots = 1;
-    if (myShipSize === 'medium') numShots = 2;
-    if (myShipSize === 'large') numShots = 3;
-
-    // Fire shots with delay
-    for (let i = 0; i < numShots; i++) {
-      setTimeout(() => {
-        fireSingleBullet(radians);
-      }, i * MULTI_SHOT_DELAY);
-    }
-  }
-
-  function fireSingleBullet(radians) {
-    // Spawn from center front of ship
-    const bulletX = myX + Math.sin(radians) * 25;
-    const bulletY = myY - Math.cos(radians) * 25;
-    const vx = Math.sin(radians) * 8;
-    const vy = -Math.cos(radians) * 8;
-
-    socket.emit('shoot', { x: bulletX, y: bulletY, vx, vy });
-
-    const bulletEl = document.createElement('div');
-    bulletEl.className = 'bullet';
-    bulletEl.style.color = playerColor;
-    game.appendChild(bulletEl);
-
-    const bulletId = `${myPlayerId}_${Date.now()}_${Math.random()}`;
-    bullets.set(bulletId, {
-      id: bulletId,
-      x: bulletX,
-      y: bulletY,
-      vx, vy,
-      color: playerColor,
-      owner: myPlayerId,
-      element: bulletEl
-    });
-  }
-
-  function updateBullets() {
-    bullets.forEach((bullet, id) => {
-      bullet.x += bullet.vx;
-      bullet.y += bullet.vy;
-
-      // Remove if off screen
-      if (bullet.x < -100 || bullet.x > GAME_WIDTH + 100 ||
-          bullet.y < -100 || bullet.y > GAME_HEIGHT + 100) {
-        bullet.element.remove();
-        bullets.delete(id);
-        return;
-      }
-
-      // Check collision with my player
-      if (bullet.owner !== myPlayerId && myPlayer) {
-        const dist = Math.sqrt((bullet.x - myX)**2 + (bullet.y - myY)**2);
-        if (dist < 25) {
-          socket.emit('playerHit', { victimId: myPlayerId, shooterId: bullet.owner });
-          bullet.element.remove();
-          bullets.delete(id);
-          return;
-        }
-      }
-
-      // Check collision with other players
-      if (bullet.owner === myPlayerId) {
-        for (const [pid, player] of otherPlayers.entries()) {
-          const dist = Math.sqrt((bullet.x - player.x)**2 + (bullet.y - player.y)**2);
-          if (dist < 25) {
-            socket.emit('playerHit', { victimId: pid, shooterId: myPlayerId });
-            bullet.element.remove();
-            bullets.delete(id);
-            return;
-          }
-        }
-      }
-
-      bullet.element.style.transform = `translate(${bullet.x}px, ${bullet.y}px)`;
-    });
-  }
-
-  function die() {
-    if (myPlayer) {
-      myPlayer.remove();
-      myPlayer = null;
-    }
-    
-    myHealth = 6;
-    myKills = 0;
-    myShipSize = 'small';
-
-    setTimeout(() => respawn(), 3000);
-  }
-
-  function respawn() {
-    spawnMyPlayer();
-
-    // Random respawn
-    const angle = Math.random() * Math.PI * 2;
-    const distance = 400 + Math.random() * 200;
-    myX = CENTER_X + Math.cos(angle) * distance;
-    myY = CENTER_Y + Math.sin(angle) * distance;
-    myAngle = 0;
-    mySpeed = 0;
-
-    socket.emit('respawn', { x: myX, y: myY });
-
-    document.getElementById('healthCount').textContent = myHealth;
-    document.getElementById('killCount').textContent = myKills;
-    document.getElementById('shipType').textContent = 'Small';
-  }
-
-  function updatePlayerCount() {
-    document.getElementById('playerCount').textContent = otherPlayers.size + 1;
-  }
-
-  function updateBestCaptain() {
-    let bestName = playerName;
-    let bestKills = myKills;
-
-    otherPlayers.forEach(player => {
-      if (player.kills > bestKills) {
-        bestKills = player.kills;
-        bestName = player.name;
-      }
-    });
-
-    document.getElementById('bestCaptain').textContent = bestKills > 0 ? bestName : '-';
-  }
-
-  function joinGame() {
-    const name = document.getElementById('playerName').value.trim();
-    if (!name) {
-      errorMsg.textContent = 'Please enter a name';
+  function displayBannedWords() {
+    const container = document.getElementById('bannedWords');
+    if (bannedWords.length === 0) {
+      container.innerHTML = '<p style="color: #888;">No custom banned words. Default list is still active.</p>';
       return;
     }
 
-    playerName = name;
-    playerColor = document.getElementById('playerColor').value;
-
-    socket.emit('join', { name, color: playerColor });
+    container.innerHTML = bannedWords.map(word => `
+      <span class="word-tag">
+        ${word}
+        <button onclick="removeBannedWord('${word}')">✕</button>
+      </span>
+    `).join('');
   }
 
-  document.getElementById('joinButton').addEventListener('click', joinGame);
-  document.getElementById('playerName').addEventListener('keypress', e => {
-    if (e.key === 'Enter') joinGame();
-  });
-
-  document.getElementById('adminBtn').addEventListener('click', () => {
-    const password = prompt('Enter admin password:');
-    if (password === '3310') {
-      window.location.href = '/admin.html';
-    } else if (password) {
-      alert('Incorrect password');
-    }
-  });
-
-  function update() {
-    if (myPlayer) {
-      // Slower rotation
-      if (keys['a'] || keys['arrowleft']) myAngle -= ROTATION_SPEED;
-      if (keys['d'] || keys['arrowright']) myAngle += ROTATION_SPEED;
-
-      // Thrust
-      if (keys['w'] || keys['arrowup']) mySpeed = Math.min(mySpeed + 0.3, 5);
-      else mySpeed *= 0.96;
-
-      // Movement
-      const radians = myAngle * Math.PI / 180;
-      myX += Math.sin(radians) * mySpeed;
-      myY -= Math.cos(radians) * mySpeed;
-
-      // Screen wrapping
-      if (myX < 0) myX = GAME_WIDTH;
-      if (myX > GAME_WIDTH) myX = 0;
-      if (myY < 0) myY = GAME_HEIGHT;
-      if (myY > GAME_HEIGHT) myY = 0;
-
-      myPlayer.style.transform = `translate(${myX}px, ${myY}px) rotate(${myAngle}deg)`;
-
-      // Send to server (throttled)
-      if (Math.random() < 0.1) {
-        socket.emit('updatePlayer', {
-          x: myX,
-          y: myY,
-          angle: myAngle,
-          speed: mySpeed
-        });
-      }
-    }
-
-    // Update other players
-    otherPlayers.forEach(player => {
-      if (player.element) {
-        player.element.style.transform = 
-          `translate(${player.x}px, ${player.y}px) rotate(${player.angle}deg)`;
-      }
-    });
-
-    updateBullets();
-    requestAnimationFrame(update);
+  function updateStats(data) {
+    document.getElementById('statPlayers').textContent = data.players.length;
+    document.getElementById('statBanned').textContent = data.banned.length;
+    document.getElementById('statKicked').textContent = data.kicked.length;
   }
 
-  update();
+  function updatePlayerList(players) {
+    const tbody = document.getElementById('playerList');
+    
+    if (players.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: #888;">No players online</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = players.map(p => `
+      <tr>
+        <td><strong>${p.name}</strong></td>
+        <td><span style="color: ${p.color};">●</span> ${p.color}</td>
+        <td>${p.kills}</td>
+        <td>${p.health}/6</td>
+        <td>${p.shipSize}</td>
+        <td>
+          <button class="warning" onclick="kickPlayer('${p.name}')">Kick 24h</button>
+          <button class="danger" onclick="banPlayer('${p.name}')">Ban</button>
+        </td>
+      </tr>
+    `).join('');
+  }
+
+  function updateBannedList(banned) {
+    const tbody = document.getElementById('bannedList');
+    
+    if (banned.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="2" style="text-align: center; color: #888;">None</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = banned.map(([name, expiry]) => `
+      <tr>
+        <td>${name}</td>
+        <td><span class="status banned">BANNED</span></td>
+      </tr>
+    `).join('');
+  }
+
+  function updateKickedList(kicked) {
+    const tbody = document.getElementById('kickedList');
+    
+    if (kicked.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="2" style="text-align: center; color: #888;">None</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = kicked.map(([name, expiry]) => {
+      const timeLeft = Math.ceil((expiry - Date.now()) / (1000 * 60 * 60));
+      return `
+        <tr>
+          <td>${name}</td>
+          <td><span class="status kicked">~${timeLeft}h left</span></td>
+        </tr>
+      `;
+    }).join('');
+  }
+
+  function kickPlayer(name) {
+    if (!confirm(`Kick ${name} for 24 hours?`)) return;
+    socket.emit('adminKick', name);
+  }
+
+  function banPlayer(name) {
+    if (!confirm(`Permanently ban ${name}?`)) return;
+    socket.emit('adminBan', name);
+  }
+
+  // Auto-refresh every 5 seconds
+  setInterval(() => {
+    if (isAuthenticated) refreshData();
+  }, 5000);
+
+  // Enter to login
+  document.getElementById('adminPassword').addEventListener('keypress', e => {
+    if (e.key === 'Enter') login();
+  });
+
+  // Enter to add word
+  document.getElementById('newWord').addEventListener('keypress', e => {
+    if (e.key === 'Enter') addBannedWord();
+  });
 </script>
 
 </body>
