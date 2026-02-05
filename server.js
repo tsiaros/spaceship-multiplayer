@@ -13,6 +13,11 @@ const io = require('socket.io')(http, {
 app.use(express.static('public'));
 app.use(express.json());
 
+// Root route - serve index.html
+app.get('/', (req, res) => {
+  res.sendFile(__dirname + '/public/index.html');
+});
+
 // Game state
 const players = new Map();
 const bullets = new Map();
