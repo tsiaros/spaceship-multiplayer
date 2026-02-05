@@ -421,16 +421,33 @@
         myShipSize.charAt(0).toUpperCase() + myShipSize.slice(1);
       updateMyShipVisual();
     } else {
+      // Update victim
       const victim = otherPlayers.get(data.victimId);
       if (victim) {
+        // Remove the ship element
+        if (victim.element) {
+          victim.element.remove();
+        }
         victim.kills = 0;
         victim.shipSize = 'small';
+        victim.element = null; // Clear the reference
       }
       
+      // Update killer
       const killer = otherPlayers.get(data.killerId);
       if (killer) {
         killer.kills = data.killerKills;
         killer.shipSize = data.killerShipSize;
+        // Update killer's visual if they have an element
+        if (killer.element) {
+          killer.element.className = `ship ship-${killer.shipSize}`;
+          const nameEl = killer.element.querySelector('.player-name');
+          const killsEl = killer.element.querySelector('.kill-counter');
+          killer.element.innerHTML = getShipSVG(killer.shipSize);
+          killer.element.appendChild(nameEl);
+          killer.element.appendChild(killsEl);
+          if (killsEl) killsEl.textContent = `Kills: ${killer.kills}`;
+        }
       }
     }
     updateBestCaptain();
@@ -440,10 +457,34 @@
     const player = otherPlayers.get(data.id);
     if (!player) return;
     
+    // Recreate the ship element if it doesn't exist
+    if (!player.element) {
+      const el = document.createElement('div');
+      el.className = 'ship ship-small';
+      el.style.color = player.color;
+
+      const nameEl = document.createElement('div');
+      nameEl.className = 'player-name';
+      nameEl.textContent = player.name;
+
+      const killsEl = document.createElement('div');
+      killsEl.className = 'kill-counter';
+      killsEl.textContent = 'Kills: 0';
+
+      el.innerHTML = getShipSVG('small');
+      el.appendChild(nameEl);
+      el.appendChild(killsEl);
+
+      game.appendChild(el);
+      player.element = el;
+    }
+    
     player.x = data.x;
     player.y = data.y;
     player.angle = 0;
     player.speed = 0;
+    player.kills = 0;
+    player.shipSize = 'small';
   });
 
   socket.on('kicked', (msg) => {
@@ -458,17 +499,24 @@
 
   // Keyboard
   document.addEventListener('keydown', e => {
+    // Only handle game controls if player is active
+    if (!myPlayer) return;
+    
     keys[e.key.toLowerCase()] = true;
-    if (e.code === 'Space' && myPlayer) { 
+    
+    if (e.code === 'Space') { 
       shoot(); 
       e.preventDefault(); 
     }
+    
     if (['w','a','d','arrowup','arrowleft','arrowright'].includes(e.key.toLowerCase())) {
       e.preventDefault();
     }
   });
 
-  document.addEventListener('keyup', e => keys[e.key.toLowerCase()] = false);
+  document.addEventListener('keyup', e => {
+    keys[e.key.toLowerCase()] = false;
+  });
 
   function getShipSVG(size) {
     if (size === 'small') {
@@ -566,20 +614,25 @@
     if (myShipSize === 'medium') numShots = 2;
     if (myShipSize === 'large') numShots = 3;
 
-    // Fire shots with delay
+    // Fire shots with staggered timing AND slight angle offset for visual spread
     for (let i = 0; i < numShots; i++) {
       setTimeout(() => {
-        fireSingleBullet(radians);
+        // Calculate slight offset for visual spacing (bullets spread slightly)
+        const angleOffset = (i - (numShots - 1) / 2) * 5; // 5 degrees apart
+        const offsetRadians = (myAngle + angleOffset) * Math.PI / 180;
+        fireSingleBullet(offsetRadians, radians); // Pass both for position vs direction
       }, i * MULTI_SHOT_DELAY);
     }
   }
 
-  function fireSingleBullet(radians) {
-    // Spawn from center front of ship
-    const bulletX = myX + Math.sin(radians) * 25;
-    const bulletY = myY - Math.cos(radians) * 25;
-    const vx = Math.sin(radians) * 8;
-    const vy = -Math.cos(radians) * 8;
+  function fireSingleBullet(directionRadians, positionRadians) {
+    // Spawn from center front of ship using position angle
+    const bulletX = myX + Math.sin(positionRadians || directionRadians) * 25;
+    const bulletY = myY - Math.cos(positionRadians || directionRadians) * 25;
+    
+    // Fire in the direction angle (with spread)
+    const vx = Math.sin(directionRadians) * 8;
+    const vy = -Math.cos(directionRadians) * 8;
 
     socket.emit('shoot', { x: bulletX, y: bulletY, vx, vy });
 
