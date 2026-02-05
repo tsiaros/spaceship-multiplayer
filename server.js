@@ -9,13 +9,13 @@ const io = require('socket.io')(http, {
   }
 });
 
-// Serve static files
-app.use(express.static('public'));
+// Serve static files from root directory
+app.use(express.static(__dirname));
 app.use(express.json());
 
-// Root route - serve index.html
+// Root route - serve index.html (renamed from index_multiplayer.html)
 app.get('/', (req, res) => {
-  res.sendFile(__dirname + '/public/index.html');
+  res.sendFile(__dirname + '/index.html');
 });
 
 // Game state
@@ -32,7 +32,7 @@ const BANNED_WORDS = [
 ];
 
 // Admin password (CHANGE THIS!)
-const ADMIN_PASSWORD = 'admin123';
+const ADMIN_PASSWORD = '3310';
 
 function containsProfanity(text) {
   const lowerText = text.toLowerCase();
@@ -303,6 +303,38 @@ io.on('connection', (socket) => {
     
     console.log(`Admin banned: ${targetName}`);
     socket.emit('adminActionSuccess', `Permanently banned ${targetName}`);
+  });
+
+  // Admin: Get banned words
+  socket.on('adminGetBannedWords', () => {
+    if (!socket.isAdmin) return;
+    socket.emit('bannedWordsUpdate', BANNED_WORDS);
+  });
+
+  // Admin: Add banned word
+  socket.on('adminAddBannedWord', (word) => {
+    if (!socket.isAdmin) return;
+    
+    const lowerWord = word.toLowerCase().trim();
+    if (!lowerWord || BANNED_WORDS.includes(lowerWord)) return;
+    
+    BANNED_WORDS.push(lowerWord);
+    console.log(`Admin added banned word: ${lowerWord}`);
+    socket.emit('bannedWordsUpdate', BANNED_WORDS);
+    socket.emit('adminActionSuccess', `Added "${lowerWord}" to banned words`);
+  });
+
+  // Admin: Remove banned word
+  socket.on('adminRemoveBannedWord', (word) => {
+    if (!socket.isAdmin) return;
+    
+    const index = BANNED_WORDS.indexOf(word.toLowerCase());
+    if (index > -1) {
+      BANNED_WORDS.splice(index, 1);
+      console.log(`Admin removed banned word: ${word}`);
+      socket.emit('bannedWordsUpdate', BANNED_WORDS);
+      socket.emit('adminActionSuccess', `Removed "${word}" from banned words`);
+    }
   });
 
   // Disconnect
