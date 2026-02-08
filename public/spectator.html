@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=2560, initial-scale=1.0">
+<title>Spectator View</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html, body { width: 100%; height: 100%; overflow: hidden; background: black; }
+#gameContainer { position: fixed; top: 0; left: 0; width: 2560px; height: 1440px; }
+#background { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; z-index: 0; }
+#game { position: absolute; top: 0; left: 0; width: 2560px; height: 1440px; z-index: 1; }
+.ship { position: absolute; transform-origin: center; }
+.ship-small { width: 40px; height: 40px; }
+.ship-medium { width: 50px; height: 50px; }
+.ship-large { width: 60px; height: 60px; }
+.player-name { position: absolute; top: 45px; left: -40px; width: 120px; text-align: center; font-size: 11px; font-weight: bold; color: white; text-shadow: 0 0 4px black, 0 0 8px black; pointer-events: none; white-space: nowrap; }
+.kill-counter { position: absolute; top: 60px; left: -40px; width: 120px; text-align: center; font-size: 10px; color: #00ff00; text-shadow: 0 0 4px black; pointer-events: none; }
+.bullet { position: absolute; width: 4px; height: 10px; background: currentColor; border-radius: 2px; box-shadow: 0 0 5px currentColor; pointer-events: none; }
+.x-beam { position: absolute; width: 40px; height: 512px; background: linear-gradient(90deg, transparent 0%, rgba(255,0,0,0.3) 30%, rgba(255,255,255,0.9) 50%, rgba(255,0,0,0.3) 70%, transparent 100%); box-shadow: 0 0 20px rgba(255,255,255,0.8), 0 0 40px rgba(255,0,0,0.6); pointer-events: none; transform-origin: center center; }
+</style>
+</head>
+<body>
+<div id="gameContainer">
+<video id="background" autoplay muted loop playsinline><source src="universe_loop.mp4" type="video/mp4"></video>
+<div id="game"></div>
+</div>
+<script src="/socket.io/socket.io.js"></script>
+<script>
+const socket = io(window.location.origin);
+const game = document.getElementById('game');
+const GAME_WIDTH = 2560, GAME_HEIGHT = 1440;
+const players = new Map(), npcs = new Map(), bullets = new Map(), xBeams = new Map();
+
+function getShipSVG(size) {
+  if (size === 'small') return `<svg viewBox="0 0 40 40"><g fill="none" stroke="currentColor" stroke-width="2"><polygon points="20,4 28,30 20,24 12,30" /><circle cx="20" cy="16" r="2" fill="currentColor" /></g></svg>`;
+  if (size === 'medium') return `<svg viewBox="0 0 50 50"><g fill="none" stroke="currentColor" stroke-width="2"><polygon points="25,4 32,18 42,22 32,26 25,40 18,26 8,22 18,18" /><circle cx="25" cy="20" r="3" fill="currentColor" /><line x1="22" y1="34" x2="22" y2="42" /><line x1="28" y1="34" x2="28" y2="42" /></g></svg>`;
+  return `<svg viewBox="0 0 70 70"><g fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="35,5 45,20 60,28 45,32 35,55 25,32 10,28 25,20" /><polygon points="5,30 15,35 5,40" /><polygon points="65,30 55,35 65,40" /><circle cx="35" cy="24" r="4" fill="currentColor" /><line x1="30" y1="52" x2="30" y2="65" /><line x1="35" y1="52" x2="35" y2="65" /><line x1="40" y1="52" x2="40" y2="65" /></g></svg>`;
+}
+function getEnemySVG() {
+  return `<svg viewBox="0 0 50 50"><g fill="none" stroke="currentColor" stroke-width="2"><polygon points="25,4 32,18 42,22 32,26 25,40 18,26 8,22 18,18" /><circle cx="25" cy="20" r="3" fill="currentColor" /><line x1="22" y1="34" x2="22" y2="42" /><line x1="28" y1="34" x2="28" y2="42" /></g></svg>`;
+}
+function getBossSVG() {
+  return `<svg viewBox="0 0 150 150"><g fill="none" stroke="currentColor" stroke-width="4"><polygon points="75,10 94,32 130,50 97,58 83,103 75,135 67,103 53,58 20,50 56,32" /><polygon points="17,58 32,70 17,82" /><polygon points="133,58 118,70 133,82" /><polygon points="75,25 92,48 75,90 58,48" /><line x1="58" y1="36" x2="92" y2="70" /><line x1="92" y1="36" x2="58" y2="70" /><line x1="61" y1="101" x2="61" y2="143" /><line x1="75" y1="105" x2="75" y2="147" /><line x1="89" y1="101" x2="89" y2="143" /></g></svg>`;
+}
+
+socket.on('connect', () => console.log('Spectator connected'));
+socket.on('disconnect', () => console.log('Spectator disconnected'));
+socket.on('joinSuccess', (data) => {
+  console.log('Spectator joined, loading players:', data.players.length);
+  data.players.forEach(p => { if (!p.name.startsWith('SPEC_')) addPlayer(p); });
+  data.npcs.forEach(npc => addNPC(npc));
+});
+socket.on('joinError', (msg) => console.error('Join error:', msg));
+socket.on('playerJoined', (player) => {
+  if (!player.name.startsWith('SPEC_')) addPlayer(player);
+});
+socket.on('playerLeft', (playerId) => {
+  const p = players.get(playerId);
+  if (p && p.element) p.element.remove();
+  players.delete(playerId);
+});
+socket.on('playerMoved', (data) => {
+  const p = players.get(data.id);
+  if (p) { p.x = data.x; p.y = data.y; p.angle = data.angle; }
+});
+socket.on('bulletFired', (bullet) => {
+  const el = document.createElement('div');
+  el.className = 'bullet';
+  el.style.color = bullet.color;
+  game.appendChild(el);
+  bullets.set(bullet.id, { ...bullet, element: el });
+});
+socket.on('playerDied', (data) => {
+  const victim = players.get(data.victimId);
+  if (victim) {
+    if (victim.element) { victim.element.remove(); victim.element = null; }
+    victim.kills = 0;
+    victim.shipSize = 'small';
+  }
+  const killer = players.get(data.killerId);
+  if (killer) {
+    killer.kills = data.killerKills;
+    killer.shipSize = data.killerShipSize;
+    if (killer.element) {
+      killer.element.className = `ship ship-${killer.shipSize}`;
+      const nameEl = killer.element.querySelector('.player-name');
+      const killsEl = killer.element.querySelector('.kill-counter');
+      killer.element.innerHTML = getShipSVG(killer.shipSize);
+      if (nameEl) killer.element.appendChild(nameEl);
+      if (killsEl) { killsEl.textContent = `Kills: ${killer.kills}`; killer.element.appendChild(killsEl); }
+    }
+  }
+});
+socket.on('forceRemoveShip', (data) => {
+  const p = players.get(data.playerId);
+  if (p && p.element) { p.element.remove(); p.element = null; }
+});
+socket.on('playerRespawned', (data) => {
+  const p = players.get(data.id);
+  if (!p) return;
+  if (!p.element) {
+    const el = document.createElement('div');
+    el.className = 'ship ship-small';
+    el.style.color = p.color;
+    const nameEl = document.createElement('div');
+    nameEl.className = 'player-name';
+    nameEl.textContent = p.name;
+    const killsEl = document.createElement('div');
+    killsEl.className = 'kill-counter';
+    killsEl.textContent = 'Kills: 0';
+    el.innerHTML = getShipSVG('small');
+    el.appendChild(nameEl);
+    el.appendChild(killsEl);
+    game.appendChild(el);
+    p.element = el;
+  }
+  p.x = data.x; p.y = data.y;
+});
+socket.on('npcSpawned', (npc) => addNPC(npc));
+socket.on('npcUpdate', (npcList) => {
+  npcList.forEach(nd => {
+    const n = npcs.get(nd.id);
+    if (n) { n.x = nd.x; n.y = nd.y; n.angle = nd.angle; }
+  });
+});
+socket.on('npcDied', (data) => {
+  const n = npcs.get(data.npcId);
+  if (n && n.element) { n.element.remove(); npcs.delete(data.npcId); }
+});
+socket.on('npcRemoved', (data) => {
+  const n = npcs.get(data.npcId);
+  if (n && n.element) { n.element.remove(); npcs.delete(data.npcId); }
+});
+socket.on('clockBullet', (bullet) => {
+  const el = document.createElement('div');
+  el.className = 'bullet';
+  el.style.color = '#ff0000';
+  game.appendChild(el);
+  bullets.set(bullet.id, { ...bullet, element: el });
+});
+socket.on('xBeamSpawned', (beam) => {
+  const el = document.createElement('div');
+  el.className = 'x-beam';
+  el.style.left = beam.x + 'px';
+  el.style.top = beam.y + 'px';
+  el.style.transform = `rotate(${beam.angle}deg)`;
+  game.appendChild(el);
+  xBeams.set(beam.id, { ...beam, element: el });
+});
+socket.on('xBeamUpdate', (data) => {
+  const b = xBeams.get(data.id);
+  if (b && b.element) {
+    b.x = data.x; b.y = data.y; b.angle = data.angle;
+    b.element.style.left = b.x + 'px';
+    b.element.style.top = b.y + 'px';
+    b.element.style.transform = `rotate(${b.angle}deg)`;
+  }
+});
+socket.on('xBeamRemoved', (data) => {
+  const b = xBeams.get(data.id);
+  if (b && b.element) { b.element.remove(); xBeams.delete(data.id); }
+});
+
+socket.on('playerStateSync', (playerStates) => {
+  const serverPlayerIds = new Set(playerStates.map(p => p.id));
+  players.forEach((player, id) => {
+    if (!serverPlayerIds.has(id)) {
+      if (player.element) player.element.remove();
+      players.delete(id);
+    }
+  });
+});
+
+socket.on('npcListSync', (npcIds) => {
+  npcs.forEach((npc, id) => {
+    if (!npcIds.includes(id)) {
+      if (npc.element) npc.element.remove();
+      npcs.delete(id);
+    }
+  });
+});
+
+function addPlayer(playerData) {
+  const el = document.createElement('div');
+  el.className = `ship ship-${playerData.shipSize}`;
+  el.style.color = playerData.color;
+  const nameEl = document.createElement('div');
+  nameEl.className = 'player-name';
+  nameEl.textContent = playerData.name;
+  const killsEl = document.createElement('div');
+  killsEl.className = 'kill-counter';
+  killsEl.textContent = `Kills: ${playerData.kills}`;
+  el.innerHTML = getShipSVG(playerData.shipSize);
+  el.appendChild(nameEl);
+  el.appendChild(killsEl);
+  game.appendChild(el);
+  players.set(playerData.id, { ...playerData, element: el });
+}
+
+function addNPC(npc) {
+  const el = document.createElement('div');
+  if (npc.type === 'boss') {
+    el.className = 'ship';
+    el.style.width = '150px';
+    el.style.height = '150px';
+  } else {
+    el.className = 'ship ship-medium';
+  }
+  el.style.color = npc.color;
+  const nameEl = document.createElement('div');
+  nameEl.className = 'player-name';
+  nameEl.textContent = npc.name;
+  const svg = npc.type === 'boss' ? getBossSVG() : getEnemySVG();
+  el.innerHTML = svg;
+  el.appendChild(nameEl);
+  game.appendChild(el);
+  npcs.set(npc.id, { ...npc, element: el });
+}
+
+function updateBullets() {
+  bullets.forEach((bullet, id) => {
+    bullet.x += bullet.vx;
+    bullet.y += bullet.vy;
+    if (bullet.x < -100 || bullet.x > GAME_WIDTH + 100 || bullet.y < -100 || bullet.y > GAME_HEIGHT + 100) {
+      bullet.element.remove();
+      bullets.delete(id);
+      return;
+    }
+    bullet.element.style.transform = `translate(${bullet.x}px, ${bullet.y}px)`;
+  });
+}
+
+function update() {
+  players.forEach(player => {
+    if (player.element) player.element.style.transform = `translate(${player.x}px, ${player.y}px) rotate(${player.angle}deg)`;
+  });
+  npcs.forEach(npc => {
+    if (npc.element) npc.element.style.transform = `translate(${npc.x}px, ${npc.y}px) rotate(${npc.angle}deg)`;
+  });
+  updateBullets();
+  requestAnimationFrame(update);
+}
+
+const spectatorName = 'SPEC_' + Math.random().toString(36).substr(2, 9);
+console.log('Joining as spectator:', spectatorName);
+socket.emit('join', { name: spectatorName, color: '#000000' });
+update();
+</script>
+</body>
+</html>
