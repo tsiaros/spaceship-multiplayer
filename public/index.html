@@ -1,0 +1,912 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Spaceship Multiplayer</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html, body { width: 100%; height: 100%; overflow: hidden; font-family: Arial, sans-serif; background: black; }
+#gameContainer { position: fixed; top: 0; left: 0; width: 100%; height: 100%; }
+#background { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); min-width: 100%; min-height: 100%; width: auto; height: auto; object-fit: cover; z-index: 0; }
+#game { position: absolute; top: 0; left: 0; width: 2560px; height: 1440px; transform-origin: top left; z-index: 1; }
+#joinPanel { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(0,0,0,0.9); padding: 30px; border-radius: 15px; color: white; z-index: 100; min-width: 320px; }
+#instructionsPanel { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(0,0,0,0.95); padding: 40px; border-radius: 15px; color: white; z-index: 100; max-width: 600px; max-height: 80vh; overflow-y: auto; }
+#joinPanel h3 { margin-bottom: 15px; color: #00ffff; text-align: center; }
+#joinPanel label { display: block; font-size: 12px; color: #888; margin-bottom: 5px; margin-top: 10px; }
+#joinPanel input[type="text"] { display: block; margin-bottom: 5px; padding: 10px; width: 100%; border-radius: 5px; border: none; font-size: 14px; }
+#joinPanel input[type="color"] { width: 100%; height: 40px; border: none; border-radius: 5px; cursor: pointer; margin-bottom: 15px; }
+#joinPanel button { width: 100%; padding: 12px; background: #00ffff; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; font-size: 14px; color: black; margin-bottom: 8px; }
+#joinPanel button:hover { background: #00dddd; }
+.smallBtn { font-size: 11px; padding: 8px; background: #888; }
+.smallBtn:hover { background: #666; }
+#adminBtn { background: #ff8800; font-size: 12px; padding: 8px; }
+#adminBtn:hover { background: #dd6600; }
+#errorMsg { color: #ff4444; font-size: 12px; margin-top: 10px; text-align: center; }
+.ship { position: absolute; transform-origin: center; }
+.ship-small { width: 40px; height: 40px; }
+.ship-medium { width: 50px; height: 50px; }
+.ship-large { width: 60px; height: 60px; }
+.player-name { position: absolute; top: 45px; left: -40px; width: 120px; text-align: center; font-size: 11px; font-weight: bold; color: white; text-shadow: 0 0 4px black, 0 0 8px black; pointer-events: none; white-space: nowrap; }
+.kill-counter { position: absolute; top: 60px; left: -40px; width: 120px; text-align: center; font-size: 10px; color: #00ff00; text-shadow: 0 0 4px black; pointer-events: none; }
+.bullet { position: absolute; width: 4px; height: 10px; background: currentColor; border-radius: 2px; box-shadow: 0 0 5px currentColor; pointer-events: none; }
+.powerup { position: absolute; pointer-events: none; }
+.x-beam { position: absolute; width: 40px; height: 512px; background: linear-gradient(90deg, transparent 0%, rgba(255,0,0,0.3) 30%, rgba(255,255,255,0.9) 50%, rgba(255,0,0,0.3) 70%, transparent 100%); box-shadow: 0 0 20px rgba(255,255,255,0.8), 0 0 40px rgba(255,0,0,0.6); pointer-events: none; transform-origin: center center; }
+#hud { position: fixed; top: 20px; right: 20px; background: rgba(0,0,0,0.8); padding: 15px; border-radius: 10px; color: white; font-size: 14px; z-index: 100; min-width: 200px; }
+#hud h4 { color: #00ffff; margin-bottom: 10px; }
+#firingModeIndicator { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.9); padding: 15px 25px; border-radius: 10px; color: white; display: none; z-index: 100; text-align: center; }
+#connectionStatus { position: fixed; top: 20px; left: 20px; background: rgba(0,0,0,0.8); padding: 10px 15px; border-radius: 5px; color: #00ff00; font-size: 12px; z-index: 100; }
+.disconnected { color: #ff4444 !important; }
+.stat-line { margin: 5px 0; }
+.best-captain { color: #ffd700; font-weight: bold; }
+</style>
+</head>
+<body>
+<div id="gameContainer">
+<video id="background" autoplay muted loop playsinline><source src="universe_loop.mp4" type="video/mp4"></video>
+<div id="game"></div>
+</div>
+<div id="joinPanel">
+<h3>🚀 Join Game</h3>
+<label>Your Name</label>
+<input id="playerName" type="text" placeholder="Enter your name" maxlength="20">
+<label>Choose Color</label>
+<input id="playerColor" type="color" value="#00ffff">
+<button id="joinButton">Join Game</button>
+<button id="spectateBtn" class="smallBtn">👁️ Spectate</button>
+<button id="instructionsBtn" class="smallBtn">📖 Instructions</button>
+<button id="adminBtn">Admin Panel</button>
+<div id="errorMsg"></div>
+</div>
+<div id="instructionsPanel">
+<h3 style="color: #00ffff; margin-bottom: 20px;">🎮 How to Play</h3>
+<h4 style="color: #00ffff; margin-top: 15px;">Controls:</h4>
+<p>W = Thrust Forward<br>A = Rotate Left<br>D = Rotate Right<br>SPACE = Shoot</p>
+<h4 style="color: #00ffff; margin-top: 15px;">PowerUps:</h4>
+<p>❤️ HP - Heal +5 health<br>⭐ MAX - Permanent +2 max health<br>🛡️ SHIELD - Add 6 shield points</p>
+<h4 style="color: #00ffff; margin-top: 15px;">Firing Modes (1 min):</h4>
+<p>🔫 MachineGun - Rapid parallel bullets<br>💥 PumpShotgun - Cone spread<br>⚡ LaserBeam - Long beam attack</p>
+<button onclick="backToJoin()" style="margin-top: 20px; width: 100%;">← Back</button>
+</div>
+<div id="connectionStatus">Connecting...</div>
+<div id="hud" style="display: none;">
+<h4>Your Stats</h4>
+<div class="stat-line">Kills: <span id="killCount">0</span></div>
+<div class="stat-line">Health: <span id="healthCount">6</span>/<span id="maxHealthCount">6</span></div>
+<div class="stat-line">Shield: <span id="shieldCount">0</span>/6</div>
+<div class="stat-line">Ship: <span id="shipType">Small</span></div>
+<div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #333;">
+<div class="stat-line" style="color: #888;">Players: <span id="playerCount">0</span></div>
+<div class="stat-line best-captain">Best Captain: <span id="bestCaptain">-</span></div>
+</div>
+</div>
+<div id="firingModeIndicator">
+<div id="modeIcon" style="font-size: 24px; margin-bottom: 5px;">🔫</div>
+<div id="modeName" style="font-weight: bold; margin-bottom: 5px;">MACHINEGUN</div>
+<div id="modeTimer" style="font-size: 12px; color: #888;">60s</div>
+</div>
+<script src="/socket.io/socket.io.js"></script>
+<script>
+const socket = io(window.location.origin);
+const game = document.getElementById('game');
+const joinPanel = document.getElementById('joinPanel');
+const instructionsPanel = document.getElementById('instructionsPanel');
+const hud = document.getElementById('hud');
+const errorMsg = document.getElementById('errorMsg');
+const connectionStatus = document.getElementById('connectionStatus');
+const GAME_WIDTH = 2560, GAME_HEIGHT = 1440, CENTER_X = 1280, CENTER_Y = 720;
+const ROTATION_SPEED = 1.8;
+let myPlayer = null, myPlayerId = null, playerName = '', playerColor = '#00ffff';
+let myX = 0, myY = 0, myAngle = 0, mySpeed = 0, myHealth = 6, myMaxHealth = 6, myShield = 0, myKills = 0, myShipSize = 'small';
+const otherPlayers = new Map(), npcs = new Map(), bullets = new Map(), xBeams = new Map(), powerups = new Map(), firingModePickups = new Map();
+let lastShot = 0, activeFiringMode = null, firingModeEndTime = 0;
+const SHOT_COOLDOWN = 400, MULTI_SHOT_DELAY = 130, keys = {};
+
+function scaleGame() {
+  const scale = Math.min(window.innerWidth / GAME_WIDTH, window.innerHeight / GAME_HEIGHT);
+  game.style.transform = `scale(${scale})`;
+  game.style.left = `${(window.innerWidth - GAME_WIDTH * scale) / 2 / scale}px`;
+  game.style.top = `${(window.innerHeight - GAME_HEIGHT * scale) / 2 / scale}px`;
+}
+window.addEventListener('resize', scaleGame);
+scaleGame();
+
+socket.on('connect', () => { connectionStatus.textContent = 'Connected'; connectionStatus.classList.remove('disconnected'); });
+socket.on('disconnect', () => { connectionStatus.textContent = 'Disconnected'; connectionStatus.classList.add('disconnected'); });
+
+socket.on('joinSuccess', (data) => {
+  myPlayerId = data.playerId;
+  joinPanel.style.display = 'none';
+  hud.style.display = 'block';
+  spawnMyPlayer();
+  data.players.forEach(p => { if (p.id !== myPlayerId) addOtherPlayer(p); });
+  data.npcs.forEach(npc => addNPC(npc));
+  data.powerups.forEach(pu => addPowerup(pu));
+  data.firingModes.forEach(fm => addFiringModePickup(fm));
+  if (data.activeFiringMode) {
+    activeFiringMode = data.activeFiringMode;
+    firingModeEndTime = data.firingModeEndTime;
+    showFiringModeIndicator(data.activeFiringMode, data.firingModeEndTime - Date.now());
+  }
+  updatePlayerCount();
+  updateBestCaptain();
+});
+
+socket.on('joinError', (msg) => { errorMsg.textContent = msg; });
+socket.on('playerJoined', (player) => { addOtherPlayer(player); updatePlayerCount(); });
+socket.on('playerLeft', (playerId) => {
+  const p = otherPlayers.get(playerId);
+  if (p && p.element) p.element.remove();
+  otherPlayers.delete(playerId);
+  updatePlayerCount();
+  updateBestCaptain();
+});
+socket.on('playerMoved', (data) => {
+  const p = otherPlayers.get(data.id);
+  if (p) { p.x = data.x; p.y = data.y; p.angle = data.angle; p.speed = data.speed; }
+});
+socket.on('bulletFired', (bullet) => {
+  const el = document.createElement('div');
+  el.className = 'bullet';
+  el.style.color = bullet.color;
+  game.appendChild(el);
+  bullets.set(bullet.id, { ...bullet, element: el });
+});
+socket.on('playerDamaged', (data) => {
+  if (data.victimId === myPlayerId) {
+    myHealth = data.health;
+    document.getElementById('healthCount').textContent = myHealth;
+    if (myPlayer) {
+      myPlayer.style.filter = 'brightness(3) saturate(0)';
+      setTimeout(() => { if (myPlayer) myPlayer.style.filter = ''; }, 200);
+    }
+  }
+});
+socket.on('playerShieldDamaged', (data) => {
+  if (data.victimId === myPlayerId) {
+    myShield = data.shield;
+    document.getElementById('shieldCount').textContent = myShield;
+    if (myPlayer) {
+      myPlayer.style.filter = 'brightness(0.5) hue-rotate(180deg)';
+      setTimeout(() => { if (myPlayer) myPlayer.style.filter = ''; }, 200);
+    }
+  }
+});
+socket.on('playerDied', (data) => {
+  if (data.victimId === myPlayerId) {
+    die();
+  } else if (data.killerId === myPlayerId) {
+    myKills = data.killerKills;
+    myShipSize = data.killerShipSize;
+    document.getElementById('killCount').textContent = myKills;
+    document.getElementById('shipType').textContent = myShipSize.charAt(0).toUpperCase() + myShipSize.slice(1);
+    updateMyShipVisual();
+  }
+  const victim = otherPlayers.get(data.victimId);
+  if (victim && victim.element) { victim.element.remove(); victim.element = null; victim.kills = 0; victim.shipSize = 'small'; }
+  const killer = otherPlayers.get(data.killerId);
+  if (killer) {
+    killer.kills = data.killerKills;
+    killer.shipSize = data.killerShipSize;
+    if (killer.element) {
+      killer.element.className = `ship ship-${killer.shipSize}`;
+      const nameEl = killer.element.querySelector('.player-name');
+      const killsEl = killer.element.querySelector('.kill-counter');
+      killer.element.innerHTML = getShipSVG(killer.shipSize);
+      if (nameEl) killer.element.appendChild(nameEl);
+      if (killsEl) { killsEl.textContent = `Kills: ${killer.kills}`; killer.element.appendChild(killsEl); }
+    }
+  }
+  updateBestCaptain();
+});
+socket.on('forceRemoveShip', (data) => {
+  if (data.playerId === myPlayerId) { if (myPlayer) { myPlayer.remove(); myPlayer = null; } }
+  else { const p = otherPlayers.get(data.playerId); if (p && p.element) { p.element.remove(); p.element = null; } }
+});
+socket.on('playerRespawned', (data) => {
+  const p = otherPlayers.get(data.id);
+  if (!p) return;
+  if (!p.element) {
+    const el = document.createElement('div');
+    el.className = 'ship ship-small';
+    el.style.color = p.color;
+    const nameEl = document.createElement('div');
+    nameEl.className = 'player-name';
+    nameEl.textContent = p.name;
+    const killsEl = document.createElement('div');
+    killsEl.className = 'kill-counter';
+    killsEl.textContent = 'Kills: 0';
+    el.innerHTML = getShipSVG('small');
+    el.appendChild(nameEl);
+    el.appendChild(killsEl);
+    game.appendChild(el);
+    p.element = el;
+  }
+  p.x = data.x; p.y = data.y; p.angle = 0; p.speed = 0; p.kills = 0; p.shipSize = 'small';
+});
+socket.on('playerHealthUpdate', (data) => {
+  if (data.playerId === myPlayerId) {
+    myHealth = data.health;
+    document.getElementById('healthCount').textContent = myHealth;
+  }
+});
+socket.on('playerMaxHealthUpdate', (data) => {
+  if (data.playerId === myPlayerId) {
+    myMaxHealth = data.maxHealth;
+    myHealth = data.health;
+    document.getElementById('maxHealthCount').textContent = myMaxHealth;
+    document.getElementById('healthCount').textContent = myHealth;
+  }
+});
+socket.on('playerShieldUpdate', (data) => {
+  if (data.playerId === myPlayerId) {
+    myShield = data.shield;
+    document.getElementById('shieldCount').textContent = myShield;
+  }
+});
+socket.on('powerupSpawned', (pu) => addPowerup(pu));
+socket.on('powerupRemoved', (data) => {
+  const p = powerups.get(data.powerupId);
+  if (p && p.element) p.element.remove();
+  powerups.delete(data.powerupId);
+});
+socket.on('firingModeSpawned', (fm) => addFiringModePickup(fm));
+socket.on('firingModeRemoved', (data) => {
+  const fm = firingModePickups.get(data.modeId);
+  if (fm && fm.element) fm.element.remove();
+  firingModePickups.delete(data.modeId);
+});
+socket.on('firingModeActivated', (data) => {
+  activeFiringMode = data.type;
+  firingModeEndTime = Date.now() + data.duration;
+  showFiringModeIndicator(data.type, data.duration);
+});
+socket.on('firingModeDeactivated', () => {
+  activeFiringMode = null;
+  document.getElementById('firingModeIndicator').style.display = 'none';
+});
+socket.on('npcSpawned', (npc) => addNPC(npc));
+socket.on('npcUpdate', (npcList) => {
+  npcList.forEach(nd => {
+    const n = npcs.get(nd.id);
+    if (n) { n.x = nd.x; n.y = nd.y; n.angle = nd.angle; }
+  });
+});
+socket.on('npcDamaged', (data) => {
+  const n = npcs.get(data.npcId);
+  if (n && n.element) {
+    n.health = data.health;
+    n.element.style.filter = 'brightness(3)';
+    setTimeout(() => { if (n.element) n.element.style.filter = ''; }, 100);
+  }
+});
+socket.on('npcDied', (data) => {
+  const n = npcs.get(data.npcId);
+  if (n) { if (n.element) n.element.remove(); npcs.delete(data.npcId); }
+  if (data.killerId === myPlayerId) {
+    myKills = data.killerKills;
+    myShipSize = data.killerShipSize;
+    document.getElementById('killCount').textContent = myKills;
+    document.getElementById('shipType').textContent = myShipSize.charAt(0).toUpperCase() + myShipSize.slice(1);
+    updateMyShipVisual();
+  }
+  updateBestCaptain();
+});
+socket.on('npcRemoved', (data) => {
+  const n = npcs.get(data.npcId);
+  if (n) { if (n.element) n.element.remove(); npcs.delete(data.npcId); }
+});
+socket.on('clockBullet', (bullet) => {
+  const el = document.createElement('div');
+  el.className = 'bullet';
+  el.style.color = '#ff0000';
+  game.appendChild(el);
+  bullets.set(bullet.id, { ...bullet, element: el, owner: 'clock' });
+});
+socket.on('xBeamSpawned', (beam) => {
+  const el = document.createElement('div');
+  el.className = 'x-beam';
+  el.style.left = beam.x + 'px';
+  el.style.top = beam.y + 'px';
+  el.style.transform = `rotate(${beam.angle}deg)`;
+  game.appendChild(el);
+  xBeams.set(beam.id, { ...beam, element: el, startTime: Date.now() });
+});
+socket.on('xBeamUpdate', (data) => {
+  const b = xBeams.get(data.id);
+  if (b) {
+    b.x = data.x; b.y = data.y; b.angle = data.angle;
+    if (b.element) {
+      b.element.style.left = b.x + 'px';
+      b.element.style.top = b.y + 'px';
+      b.element.style.transform = `rotate(${b.angle}deg)`;
+    }
+  }
+});
+socket.on('xBeamRemoved', (data) => {
+  const b = xBeams.get(data.id);
+  if (b && b.element) { b.element.remove(); xBeams.delete(data.id); }
+});
+socket.on('playerHealthRegen', (data) => {
+  if (data.playerId === myPlayerId) {
+    myHealth = data.health;
+    document.getElementById('healthCount').textContent = myHealth;
+  }
+});
+socket.on('playerStateSync', (playerStates) => {
+  const serverPlayerIds = new Set(playerStates.map(p => p.id));
+  otherPlayers.forEach((player, id) => {
+    if (!serverPlayerIds.has(id) && id !== myPlayerId) {
+      if (player.element) player.element.remove();
+      otherPlayers.delete(id);
+    }
+  });
+  updatePlayerCount();
+  updateBestCaptain();
+});
+socket.on('npcListSync', (npcIds) => {
+  npcs.forEach((npc, id) => {
+    if (!npcIds.includes(id)) {
+      if (npc.element) npc.element.remove();
+      npcs.delete(id);
+    }
+  });
+});
+socket.on('kicked', (msg) => { alert(msg); window.location.reload(); });
+socket.on('banned', (msg) => { alert(msg); window.location.reload(); });
+
+document.addEventListener('keydown', e => {
+  if (!myPlayer) return;
+  keys[e.key.toLowerCase()] = true;
+  if (e.code === 'Space') { shoot(); e.preventDefault(); }
+  if (['w','a','d','arrowup','arrowleft','arrowright'].includes(e.key.toLowerCase())) e.preventDefault();
+});
+document.addEventListener('keyup', e => { keys[e.key.toLowerCase()] = false; });
+
+function getShipSVG(size) {
+  if (size === 'small') return `<svg viewBox="0 0 40 40"><g fill="none" stroke="currentColor" stroke-width="2"><polygon points="20,4 28,30 20,24 12,30" /><circle cx="20" cy="16" r="2" fill="currentColor" /></g></svg>`;
+  if (size === 'medium') return `<svg viewBox="0 0 50 50"><g fill="none" stroke="currentColor" stroke-width="2"><polygon points="25,4 32,18 42,22 32,26 25,40 18,26 8,22 18,18" /><circle cx="25" cy="20" r="3" fill="currentColor" /><line x1="22" y1="34" x2="22" y2="42" /><line x1="28" y1="34" x2="28" y2="42" /></g></svg>`;
+  return `<svg viewBox="0 0 70 70"><g fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="35,5 45,20 60,28 45,32 35,55 25,32 10,28 25,20" /><polygon points="5,30 15,35 5,40" /><polygon points="65,30 55,35 65,40" /><circle cx="35" cy="24" r="4" fill="currentColor" /><line x1="30" y1="52" x2="30" y2="65" /><line x1="35" y1="52" x2="35" y2="65" /><line x1="40" y1="52" x2="40" y2="65" /></g></svg>`;
+}
+function getEnemySVG() {
+  return `<svg viewBox="0 0 50 50"><g fill="none" stroke="currentColor" stroke-width="2"><polygon points="25,4 32,18 42,22 32,26 25,40 18,26 8,22 18,18" /><circle cx="25" cy="20" r="3" fill="currentColor" /><line x1="22" y1="34" x2="22" y2="42" /><line x1="28" y1="34" x2="28" y2="42" /></g></svg>`;
+}
+function getBossSVG() {
+  return `<svg viewBox="0 0 150 150"><g fill="none" stroke="currentColor" stroke-width="4"><polygon points="75,10 94,32 130,50 97,58 83,103 75,135 67,103 53,58 20,50 56,32" /><polygon points="17,58 32,70 17,82" /><polygon points="133,58 118,70 133,82" /><polygon points="75,25 92,48 75,90 58,48" /><line x1="58" y1="36" x2="92" y2="70" /><line x1="92" y1="36" x2="58" y2="70" /><line x1="61" y1="101" x2="61" y2="143" /><line x1="75" y1="105" x2="75" y2="147" /><line x1="89" y1="101" x2="89" y2="143" /></g></svg>`;
+}
+
+function spawnMyPlayer() {
+  myPlayer = document.createElement('div');
+  myPlayer.className = 'ship ship-small';
+  myPlayer.style.color = playerColor;
+  const nameEl = document.createElement('div');
+  nameEl.className = 'player-name';
+  nameEl.textContent = playerName + ' (You)';
+  const killsEl = document.createElement('div');
+  killsEl.className = 'kill-counter';
+  killsEl.textContent = 'Kills: 0';
+  myPlayer.innerHTML = getShipSVG('small');
+  myPlayer.appendChild(nameEl);
+  myPlayer.appendChild(killsEl);
+  const angle = Math.random() * Math.PI * 2;
+  const distance = 400 + Math.random() * 200;
+  myX = CENTER_X + Math.cos(angle) * distance;
+  myY = CENTER_Y + Math.sin(angle) * distance;
+  myAngle = 0;
+  game.appendChild(myPlayer);
+}
+
+function addOtherPlayer(player) {
+  const el = document.createElement('div');
+  el.className = `ship ship-${player.shipSize}`;
+  el.style.color = player.color;
+  const nameEl = document.createElement('div');
+  nameEl.className = 'player-name';
+  nameEl.textContent = player.name;
+  const killsEl = document.createElement('div');
+  killsEl.className = 'kill-counter';
+  killsEl.textContent = `Kills: ${player.kills}`;
+  el.innerHTML = getShipSVG(player.shipSize);
+  el.appendChild(nameEl);
+  el.appendChild(killsEl);
+  game.appendChild(el);
+  otherPlayers.set(player.id, { ...player, element: el });
+}
+
+function addNPC(npc) {
+  const el = document.createElement('div');
+  if (npc.type === 'boss') {
+    el.className = 'ship';
+    el.style.width = '150px';
+    el.style.height = '150px';
+  } else {
+    el.className = 'ship ship-medium';
+  }
+  el.style.color = npc.color;
+  const nameEl = document.createElement('div');
+  nameEl.className = 'player-name';
+  nameEl.textContent = npc.name;
+  const svg = npc.type === 'boss' ? getBossSVG() : getEnemySVG();
+  el.innerHTML = svg;
+  el.appendChild(nameEl);
+  game.appendChild(el);
+  npcs.set(npc.id, { ...npc, element: el });
+}
+
+function addPowerup(pu) {
+  const el = document.createElement('canvas');
+  el.width = 80;
+  el.height = 80;
+  el.className = 'powerup';
+  game.appendChild(el);
+  powerups.set(pu.id, { ...pu, element: el, time: 0 });
+  animatePowerup(pu.id);
+}
+
+function addFiringModePickup(fm) {
+  const el = document.createElement('canvas');
+  el.width = 80;
+  el.height = 80;
+  el.className = 'powerup';
+  game.appendChild(el);
+  firingModePickups.set(fm.id, { ...fm, element: el, time: 0 });
+  animateFiringMode(fm.id);
+}
+
+function animatePowerup(id) {
+  const pu = powerups.get(id);
+  if (!pu) return;
+  pu.time += 0.015;
+  const ctx = pu.element.getContext('2d');
+  ctx.clearRect(0, 0, 80, 80);
+  const glow = (Math.sin(pu.time) + 1) / 2;
+  ctx.strokeStyle = 'white';
+  ctx.lineWidth = 2;
+  ctx.shadowColor = 'white';
+  ctx.shadowBlur = 8 + glow * 10;
+  ctx.strokeRect(15, 15, 50, 50);
+  ctx.beginPath();
+  ctx.moveTo(40, 15);
+  ctx.lineTo(40, 65);
+  ctx.moveTo(15, 40);
+  ctx.lineTo(65, 40);
+  ctx.stroke();
+  ctx.shadowBlur = 0;
+  if (pu.type === 'hp') {
+    ctx.beginPath();
+    ctx.moveTo(40, 50);
+    ctx.bezierCurveTo(26, 38, 30, 26, 40, 32);
+    ctx.bezierCurveTo(50, 26, 54, 38, 40, 50);
+    ctx.stroke();
+  } else if (pu.type === 'max') {
+    ctx.beginPath();
+    ctx.moveTo(40, 22);
+    ctx.lineTo(52, 28);
+    ctx.lineTo(52, 44);
+    ctx.lineTo(40, 54);
+    ctx.lineTo(28, 44);
+    ctx.lineTo(28, 28);
+    ctx.closePath();
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(40, 26);
+    ctx.lineTo(40, 50);
+    ctx.stroke();
+  } else if (pu.type === 'shield') {
+    ctx.beginPath();
+    ctx.moveTo(40, 24);
+    ctx.lineTo(54, 30);
+    ctx.lineTo(50, 52);
+    ctx.lineTo(40, 58);
+    ctx.lineTo(30, 52);
+    ctx.lineTo(26, 30);
+    ctx.closePath();
+    ctx.stroke();
+  }
+  requestAnimationFrame(() => animatePowerup(id));
+}
+
+function animateFiringMode(id) {
+  const fm = firingModePickups.get(id);
+  if (!fm) return;
+  fm.time += 0.015;
+  const ctx = fm.element.getContext('2d');
+  ctx.clearRect(0, 0, 80, 80);
+  const glow = (Math.sin(fm.time) + 1) / 2;
+  ctx.strokeStyle = 'white';
+  ctx.lineWidth = 2;
+  ctx.shadowColor = 'white';
+  ctx.shadowBlur = 8 + glow * 10;
+  ctx.strokeRect(15, 15, 50, 50);
+  ctx.beginPath();
+  ctx.moveTo(40, 15);
+  ctx.lineTo(40, 65);
+  ctx.moveTo(15, 40);
+  ctx.lineTo(65, 40);
+  ctx.stroke();
+  ctx.shadowBlur = 0;
+  if (fm.type === 'machinegun') {
+    ctx.beginPath();
+    ctx.moveTo(32, 26);
+    ctx.lineTo(32, 54);
+    ctx.moveTo(48, 26);
+    ctx.lineTo(48, 54);
+    ctx.stroke();
+  } else if (fm.type === 'pumpshotgun') {
+    for (let i = -2; i <= 2; i++) {
+      ctx.beginPath();
+      ctx.moveTo(40, 44);
+      ctx.lineTo(40 + i * 6, 26);
+      ctx.stroke();
+    }
+  } else if (fm.type === 'laserbeam') {
+    ctx.beginPath();
+    ctx.moveTo(40, 22);
+    ctx.lineTo(40, 58);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(40, 28, 4, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+  requestAnimationFrame(() => animateFiringMode(id));
+}
+
+function showFiringModeIndicator(type, duration) {
+  const indicator = document.getElementById('firingModeIndicator');
+  const icons = { machinegun: '🔫', pumpshotgun: '💥', laserbeam: '⚡' };
+  const names = { machinegun: 'MACHINEGUN', pumpshotgun: 'PUMPSHOTGUN', laserbeam: 'LASERBEAM' };
+  document.getElementById('modeIcon').textContent = icons[type] || '🔫';
+  document.getElementById('modeName').textContent = names[type] || type.toUpperCase();
+  indicator.style.display = 'block';
+  const endTime = Date.now() + duration;
+  const interval = setInterval(() => {
+    const remaining = Math.max(0, Math.ceil((endTime - Date.now()) / 1000));
+    document.getElementById('modeTimer').textContent = remaining + 's';
+    if (remaining <= 0) {
+      clearInterval(interval);
+      indicator.style.display = 'none';
+    }
+  }, 100);
+}
+
+function updateMyShipVisual() {
+  if (!myPlayer) return;
+  myPlayer.className = `ship ship-${myShipSize}`;
+  const nameEl = myPlayer.querySelector('.player-name');
+  const killsEl = myPlayer.querySelector('.kill-counter');
+  myPlayer.innerHTML = getShipSVG(myShipSize);
+  myPlayer.appendChild(nameEl);
+  myPlayer.appendChild(killsEl);
+  if (killsEl) killsEl.textContent = `Kills: ${myKills}`;
+}
+
+function shoot() {
+  const now = Date.now();
+  if (activeFiringMode === 'machinegun') {
+    if (now - lastShot < 100) return;
+    lastShot = now;
+    const radians = myAngle * Math.PI / 180;
+    const offset = 8;
+    for (let i = -1; i <= 1; i += 2) {
+      const bulletX = myX + Math.sin(radians) * 25 + Math.cos(radians) * offset * i;
+      const bulletY = myY - Math.cos(radians) * 25 + Math.sin(radians) * offset * i;
+      fireSingleBullet(radians, bulletX, bulletY);
+    }
+  } else if (activeFiringMode === 'pumpshotgun') {
+    if (now - lastShot < 1200) return;
+    lastShot = now;
+    const radians = myAngle * Math.PI / 180;
+    const coneAngles = [-20, -15, -10, -5, 0, 5, 10, 15, 20];
+    const maxRange = 853;
+    coneAngles.forEach((offset, i) => {
+      setTimeout(() => {
+        const offsetRad = (myAngle + offset) * Math.PI / 180;
+        const bulletX = myX + Math.sin(radians) * 25;
+        const bulletY = myY - Math.cos(radians) * 25;
+        const vx = Math.sin(offsetRad) * 12;
+        const vy = -Math.cos(offsetRad) * 12;
+        socket.emit('shoot', { x: bulletX, y: bulletY, vx, vy, firingMode: 'pumpshotgun' });
+        const bulletEl = document.createElement('div');
+        bulletEl.className = 'bullet';
+        bulletEl.style.width = '6px';
+        bulletEl.style.height = '12px';
+        bulletEl.style.color = playerColor;
+        game.appendChild(bulletEl);
+        const bulletId = `${myPlayerId}_${Date.now()}_${Math.random()}`;
+        bullets.set(bulletId, { 
+          id: bulletId, 
+          x: bulletX, 
+          y: bulletY, 
+          vx, 
+          vy, 
+          color: playerColor, 
+          owner: myPlayerId, 
+          element: bulletEl, 
+          firingMode: 'pumpshotgun', 
+          range: maxRange,
+          traveled: 0,
+          damage: 2.5
+        });
+      }, i * 133);
+    });
+  } else if (activeFiringMode === 'laserbeam') {
+    if (now - lastShot < 2200) return;
+    lastShot = now;
+    const radians = myAngle * Math.PI / 180;
+    const beamLength = 1080;
+    const beamWidth = 12;
+    const beamEl = document.createElement('div');
+    beamEl.style.position = 'absolute';
+    beamEl.style.width = beamWidth + 'px';
+    beamEl.style.height = beamLength + 'px';
+    beamEl.style.background = `linear-gradient(to bottom, ${playerColor}, transparent)`;
+    beamEl.style.boxShadow = `0 0 30px ${playerColor}`;
+    beamEl.style.transformOrigin = 'top center';
+    beamEl.style.left = (myX - beamWidth/2) + 'px';
+    beamEl.style.top = myY + 'px';
+    beamEl.style.transform = `rotate(${myAngle}deg)`;
+    game.appendChild(beamEl);
+    setTimeout(() => beamEl.remove(), 500);
+    otherPlayers.forEach((player, pid) => {
+      const dx = player.x - myX;
+      const dy = player.y - myY;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist < beamLength) {
+        const angleToPlayer = Math.atan2(dx, -dy) * 180 / Math.PI;
+        let diff = angleToPlayer - myAngle;
+        while (diff > 180) diff -= 360;
+        while (diff < -180) diff += 360;
+        if (Math.abs(diff) < 3) {
+          for (let i = 0; i < 5; i++) {
+            socket.emit('playerHit', { victimId: pid, shooterId: myPlayerId });
+          }
+        }
+      }
+    });
+    npcs.forEach((npc, npcId) => {
+      const dx = npc.x - myX;
+      const dy = npc.y - myY;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist < beamLength) {
+        const angleToNPC = Math.atan2(dx, -dy) * 180 / Math.PI;
+        let diff = angleToNPC - myAngle;
+        while (diff > 180) diff -= 360;
+        while (diff < -180) diff += 360;
+        if (Math.abs(diff) < 3) {
+          for (let i = 0; i < 5; i++) {
+            socket.emit('npcHit', { npcId: npcId, shooterId: myPlayerId });
+          }
+        }
+      }
+    });
+  } else {
+    if (now - lastShot < SHOT_COOLDOWN) return;
+    lastShot = now;
+    const radians = myAngle * Math.PI / 180;
+    let numShots = 1;
+    if (myShipSize === 'medium') numShots = 2;
+    if (myShipSize === 'large') numShots = 3;
+    for (let i = 0; i < numShots; i++) {
+      setTimeout(() => fireSingleBullet(radians), i * MULTI_SHOT_DELAY);
+    }
+  }
+}
+
+function fireSingleBullet(radians, bulletX = null, bulletY = null) {
+  if (bulletX === null) bulletX = myX + Math.sin(radians) * 25;
+  if (bulletY === null) bulletY = myY - Math.cos(radians) * 25;
+  const vx = Math.sin(radians) * 8;
+  const vy = -Math.cos(radians) * 8;
+  socket.emit('shoot', { x: bulletX, y: bulletY, vx, vy });
+  const bulletEl = document.createElement('div');
+  bulletEl.className = 'bullet';
+  bulletEl.style.color = playerColor;
+  game.appendChild(bulletEl);
+  const bulletId = `${myPlayerId}_${Date.now()}_${Math.random()}`;
+  bullets.set(bulletId, { id: bulletId, x: bulletX, y: bulletY, vx, vy, color: playerColor, owner: myPlayerId, element: bulletEl });
+}
+
+function updateBullets() {
+  bullets.forEach((bullet, id) => {
+    bullet.x += bullet.vx;
+    bullet.y += bullet.vy;
+    
+    if (bullet.range !== undefined) {
+      const speed = Math.sqrt(bullet.vx ** 2 + bullet.vy ** 2);
+      bullet.traveled = (bullet.traveled || 0) + speed;
+      
+      if (bullet.traveled >= bullet.range) {
+        bullet.element.remove();
+        bullets.delete(id);
+        return;
+      }
+      
+      const fadeProgress = bullet.traveled / bullet.range;
+      if (fadeProgress > 0.7) {
+        bullet.element.style.opacity = 1 - ((fadeProgress - 0.7) / 0.3);
+      }
+    }
+    
+    if (bullet.x < -100 || bullet.x > GAME_WIDTH + 100 || bullet.y < -100 || bullet.y > GAME_HEIGHT + 100) {
+      bullet.element.remove();
+      bullets.delete(id);
+      return;
+    }
+    
+    if (bullet.owner !== myPlayerId && myPlayer) {
+      const dist = Math.sqrt((bullet.x - myX)**2 + (bullet.y - myY)**2);
+      if (dist < 25) {
+        const hitCount = bullet.damage ? Math.round(bullet.damage) : 1;
+        for (let i = 0; i < hitCount; i++) {
+          socket.emit('playerHit', { victimId: myPlayerId, shooterId: bullet.owner });
+        }
+        bullet.element.remove();
+        bullets.delete(id);
+        return;
+      }
+    }
+    if (bullet.owner === myPlayerId) {
+      for (const [pid, player] of otherPlayers.entries()) {
+        const dist = Math.sqrt((bullet.x - player.x)**2 + (bullet.y - player.y)**2);
+        if (dist < 25) {
+          const hitCount = bullet.damage ? Math.round(bullet.damage) : 1;
+          for (let i = 0; i < hitCount; i++) {
+            socket.emit('playerHit', { victimId: pid, shooterId: myPlayerId });
+          }
+          bullet.element.remove();
+          bullets.delete(id);
+          return;
+        }
+      }
+      for (const [npcId, npc] of npcs.entries()) {
+        const dist = Math.sqrt((bullet.x - npc.x)**2 + (bullet.y - npc.y)**2);
+        if (dist < 30) {
+          const hitCount = bullet.damage ? Math.round(bullet.damage) : 1;
+          for (let i = 0; i < hitCount; i++) {
+            socket.emit('npcHit', { npcId: npcId, shooterId: myPlayerId });
+          }
+          bullet.element.remove();
+          bullets.delete(id);
+          return;
+        }
+      }
+    }
+    bullet.element.style.transform = `translate(${bullet.x}px, ${bullet.y}px)`;
+  });
+  
+  xBeams.forEach((beam) => {
+    if (!myPlayer) return;
+    const dx = myX - beam.x;
+    const dy = myY - beam.y;
+    const radians = beam.angle * Math.PI / 180;
+    const localX = dx * Math.cos(-radians) - dy * Math.sin(-radians);
+    const localY = dx * Math.sin(-radians) + dy * Math.cos(-radians);
+    if (Math.abs(localX) < 30 && localY > -256 && localY < 256) {
+      if (!beam.hasHitMe) {
+        socket.emit('playerHit', { victimId: myPlayerId, shooterId: 'xbeam' });
+        socket.emit('playerHit', { victimId: myPlayerId, shooterId: 'xbeam' });
+        beam.hasHitMe = true;
+        setTimeout(() => { beam.hasHitMe = false; }, 500);
+        if (myPlayer) {
+          myPlayer.style.filter = 'brightness(3) saturate(0)';
+          setTimeout(() => { if (myPlayer) myPlayer.style.filter = ''; }, 200);
+        }
+      }
+    }
+  });
+}
+
+function die() {
+  if (myPlayer) { myPlayer.remove(); myPlayer = null; }
+  myHealth = 6;
+  myShield = 0;
+  myKills = 0;
+  myShipSize = 'small';
+  setTimeout(() => respawn(), 3000);
+}
+
+function respawn() {
+  spawnMyPlayer();
+  const angle = Math.random() * Math.PI * 2;
+  const distance = 400 + Math.random() * 200;
+  myX = CENTER_X + Math.cos(angle) * distance;
+  myY = CENTER_Y + Math.sin(angle) * distance;
+  myAngle = 0;
+  mySpeed = 0;
+  socket.emit('respawn', { x: myX, y: myY });
+  document.getElementById('healthCount').textContent = myHealth;
+  document.getElementById('shieldCount').textContent = myShield;
+  document.getElementById('killCount').textContent = myKills;
+  document.getElementById('shipType').textContent = 'Small';
+}
+
+function updatePlayerCount() {
+  let count = 0;
+  otherPlayers.forEach(p => { if (!p.name.startsWith('SPEC_')) count++; });
+  if (myPlayer && !playerName.startsWith('SPEC_')) count++;
+  document.getElementById('playerCount').textContent = count;
+}
+
+function updateBestCaptain() {
+  let bestName = playerName;
+  let bestKills = myKills;
+  otherPlayers.forEach(player => {
+    if (player.kills > bestKills) {
+      bestKills = player.kills;
+      bestName = player.name;
+    }
+  });
+  document.getElementById('bestCaptain').textContent = bestKills > 0 ? bestName : '-';
+}
+
+function joinGame() {
+  const name = document.getElementById('playerName').value.trim();
+  if (!name) { errorMsg.textContent = 'Please enter a name'; return; }
+  playerName = name;
+  playerColor = document.getElementById('playerColor').value;
+  socket.emit('join', { name, color: playerColor });
+}
+
+function backToJoin() {
+  instructionsPanel.style.display = 'none';
+  joinPanel.style.display = 'block';
+}
+
+document.getElementById('joinButton').addEventListener('click', joinGame);
+document.getElementById('spectateBtn').addEventListener('click', () => { window.location.href = '/spectator.html'; });
+document.getElementById('instructionsBtn').addEventListener('click', () => {
+  joinPanel.style.display = 'none';
+  instructionsPanel.style.display = 'block';
+});
+document.getElementById('playerName').addEventListener('keypress', e => { if (e.key === 'Enter') joinGame(); });
+document.getElementById('adminBtn').addEventListener('click', () => {
+  const password = prompt('Enter admin password:');
+  if (password === '3310') window.location.href = '/admin.html';
+  else if (password) alert('Incorrect password');
+});
+
+function update() {
+  if (myPlayer) {
+    if (keys['a'] || keys['arrowleft']) myAngle -= ROTATION_SPEED;
+    if (keys['d'] || keys['arrowright']) myAngle += ROTATION_SPEED;
+    if (keys['w'] || keys['arrowup']) mySpeed = Math.min(mySpeed + 0.3, 5);
+    else mySpeed *= 0.96;
+    const radians = myAngle * Math.PI / 180;
+    myX += Math.sin(radians) * mySpeed;
+    myY -= Math.cos(radians) * mySpeed;
+    if (myX < 0) myX = GAME_WIDTH;
+    if (myX > GAME_WIDTH) myX = 0;
+    if (myY < 0) myY = GAME_HEIGHT;
+    if (myY > GAME_HEIGHT) myY = 0;
+    myPlayer.style.transform = `translate(${myX}px, ${myY}px) rotate(${myAngle}deg)`;
+    if (Math.random() < 0.5) {
+      socket.emit('updatePlayer', { x: myX, y: myY, angle: myAngle, speed: mySpeed });
+    }
+    powerups.forEach((powerup, id) => {
+      const dist = Math.sqrt((myX - powerup.x)**2 + (myY - powerup.y)**2);
+      if (dist < 60) {
+        socket.emit('powerupPickup', { powerupId: id });
+      }
+      powerup.element.style.transform = `translate(${powerup.x}px, ${powerup.y}px)`;
+    });
+    firingModePickups.forEach((fm, id) => {
+      const dist = Math.sqrt((myX - fm.x)**2 + (myY - fm.y)**2);
+      if (dist < 60) {
+        socket.emit('firingModePickup', { modeId: id });
+      }
+      fm.element.style.transform = `translate(${fm.x}px, ${fm.y}px)`;
+    });
+  }
+  otherPlayers.forEach(player => {
+    if (player.element) player.element.style.transform = `translate(${player.x}px, ${player.y}px) rotate(${player.angle}deg)`;
+  });
+  npcs.forEach(npc => {
+    if (npc.element) npc.element.style.transform = `translate(${npc.x}px, ${npc.y}px) rotate(${npc.angle}deg)`;
+  });
+  updateBullets();
+  requestAnimationFrame(update);
+}
+update();
+</script>
+</body>
+</html>
